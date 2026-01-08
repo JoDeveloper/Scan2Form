@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import express from 'express';
 import cors from 'cors';
 import { exec } from 'child_process';
@@ -21,33 +22,122 @@ app.get('/health', (req, res) => {
     res.json({ status: "ok", engine: "NAPS2-Wrapper", version: "1.0.0" });
 });
 
-// Rule 4.2: Scan Endpoint
+// Serve example for testing
+app.use('/example', express.static(path.join(__dirname, '../example')));
+app.use('/dist', express.static(path.join(__dirname, '../dist')));
+
+
+// --- Scanner Engine Selection ---
+// We check for 'naps2.console' first, then 'scanimage' (SANE).
+
+function getScannerEngine(callback: (engine: 'naps2' | 'sane' | null) => void) {
+    exec('naps2.console --help', (err) => {
+        if (!err) return callback('naps2');
+        exec('scanimage --version', (err2) => {
+             if (!err2) return callback('sane');
+             callback(null);
+        });
+    });
+}
+
+// --- Endpoints ---
+
+app.get('/devices', (req, res) => {
+    getScannerEngine((engine) => {
+        if (engine === 'naps2') {
+             exec('naps2.console --list', (error, stdout, stderr) => {
+                 if (error) {
+                     console.error("NAPS2 List Error:", stderr);
+                     return res.json([]);
+                 }
+                 const devices = stdout.split('\n').filter(line => line.trim().length > 0);
+                 res.json({ devices });
+             });
+        } else if (engine === 'sane') {
+             exec('scanimage -L', (error, stdout, stderr) => {
+                 if (error) {
+                     console.error("SANE List Error:", stderr);
+                     return res.json([]);
+                 }
+                 // scanimage -L output: "device `epsonds:libusb:002:003' is a Epson DS-530 II"
+                 // We want to return a friendly name or the ID.
+                 const devices = stdout.split('\n')
+                    .filter(line => line.includes('is a'))
+                    .map(line => {
+                        // Cleanup string
+                        return line.replace('device `', '').replace(`'`, ''); 
+                    });
+                 res.json({ devices });
+             });
+        } else {
+            console.error("No scanner software found (NAPS2 or SANE).");
+            res.json([]);
+        }
+    });
+});
+
 app.post('/scan', async (req, res) => {
     const scanId = uuidv4();
-    const outputPath = path.join(TEMP_DIR, `scan_${scanId}.pdf`);
-    
-    // Command to scan using NAPS2 Console (Universal Driver)
-    // --noprofile: uses default settings
-    // --output: specifies destination
-    // --force: overwrites if exists
-    const command = `naps2.console -o "${outputPath}" --force --noprofile`;
+    const finalPdfPath = path.join(TEMP_DIR, `scan_${scanId}.pdf`);
 
-    console.log(`Starting scan: ${scanId}`);
-
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Scan Error: ${stderr}`);
-            return res.status(500).json({ error: "Scanner communication failed", details: stderr });
+    getScannerEngine((engine) => {
+        if (!engine) {
+            return res.status(500).json({ error: "No scanner software installed (NAPS2 or SANE)." });
         }
 
-        // Rule 7: Stream file back to browser
-        res.download(outputPath, `scan_${scanId}.pdf`, (err) => {
-            if (err) {
-                 console.error("Transmission error");
-            }
-            // Rule 4.1.6: Clean up temp file immediately after sending
-            fs.unlink(outputPath, () => console.log(`Cleaned up ${scanId}`));
-        });
+        if (engine === 'naps2') {
+            const cmd = `naps2.console -o "${finalPdfPath}" -v`;
+            console.log(`Scanning with NAPS2: ${cmd}`);
+            exec(cmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`NAPS2 Error: ${error.message}`);
+                    return res.status(500).json({ error: "Scan failed", details: stderr });
+                }
+                if (fs.existsSync(finalPdfPath)) {
+                    res.sendFile(finalPdfPath, () => {
+                        fs.unlink(finalPdfPath, (err) => { if(err) console.error("Cleanup error:", err); });
+                    });
+                } else {
+                    res.status(500).json({ error: "Scan completed but PDF not found." });
+                }
+            });
+        } else if (engine === 'sane') {
+            // SANE flow: scanimage -> tiff -> sips -> pdf
+            const tempTiffPath = path.join(TEMP_DIR, `scan_${scanId}.tiff`);
+            // Default to batch access or single scan. `scanimage --format=tiff > output.tiff`
+            const cmd = `scanimage --format=tiff --mode Color --resolution 300 > "${tempTiffPath}"`; 
+            
+            console.log(`Scanning with SANE: ${cmd}`);
+            exec(cmd, (error, stdout, stderr) => {
+                 if (error) {
+                     // scanimage writes progress to stderr, so it might not be a real error unless exit code != 0.
+                     // But exec gives error on non-zero exit.
+                     console.error(`SANE Error: ${error.message}`);
+                     return res.status(500).json({ error: "Scan failed", details: stderr });
+                 }
+
+                 // Convert TIFF to PDF using Mac's 'sips' or ImageMagick 'convert'
+                 // Since we are targeting Mac fallback, we use 'sips'
+                 const convertCmd = `sips -s format pdf "${tempTiffPath}" --out "${finalPdfPath}"`;
+                 exec(convertCmd, (cErr, cOut, cStderr) => {
+                     // Cleanup TIFF immediately
+                     if(fs.existsSync(tempTiffPath)) fs.unlinkSync(tempTiffPath);
+
+                     if (cErr) {
+                         console.error(`Conversion Error: ${cStderr}`);
+                         return res.status(500).json({ error: "Image conversion failed" });
+                     }
+
+                     if (fs.existsSync(finalPdfPath)) {
+                        res.sendFile(finalPdfPath, () => {
+                            fs.unlink(finalPdfPath, (err) => { if(err) console.error("Cleanup error:", err); });
+                        });
+                     } else {
+                        res.status(500).json({ error: "Conversion completed but PDF not found." });
+                     }
+                 });
+            });
+        }
     });
 });
 
@@ -61,5 +151,6 @@ export { app };
 if (require.main === module) {
     app.listen(PORT, '127.0.0.1', () => {
         console.log(`Scan2Form Bridge running at http://127.0.0.1:${PORT}`);
+        console.log(`Open Example: http://127.0.0.1:${PORT}/example/index.html`);
     });
 }

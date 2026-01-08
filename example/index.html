@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan2Form Example</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .container { border: 1px solid #ccc; padding: 20px; border-radius: 8px; }
+        .status { margin-top: 10px; color: #666; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        #preview { margin-top: 20px; border: 1px dashed #aaa; padding: 10px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Scan directly to Form</h1>
+        <p>Ensure <b>naps2.console</b> is installed and <b>npx scan2form-server</b> is running.</p>
+        
+        <!-- The form we want to populate -->
+        <form id="my-form" action="#" onsubmit="alert('Form submitted with file!'); return false;">
+            <label for="document-upload">Document:</label>
+            <!-- Standard file input (Hidden) -->
+            <input type="file" id="document-upload" name="document" required style="display: none;" />
+            <div id="file-display">No file scanned yet.</div>
+            <br><br>
+            
+            <button type="button" id="scan-btn">🖨️ Scan from Device</button>
+            <button type="submit">Submit Form</button>
+        </form>
+
+        <div id="status" class="status"></div>
+        <div id="preview">File attached: <span id="filename"></span></div>
+    </div>
+
+    <!-- We will bundle the library or import it. For this example we assume a script tag or module. -->
+    <!-- Since we are in the package repo, we might need to build/link it. -->
+    
+    <script type="module">
+        // In a real app, this would be: import { Scan2Form } from 'scan2form';
+        // Here we point to the dist file for demonstration if served correctly, 
+        // or we use a bundler approach. To keep it simple, we'll assume the user
+        // builds the project and we can import from relative path if supported by browser 
+        // (needs .js extension and type="module").
+        
+        import { Scan2Form } from '../dist/esm/scanner-client.js';
+
+        const scanner = new Scan2Form();
+        const statusDiv = document.getElementById('status');
+        const previewDiv = document.getElementById('preview');
+        const filenameSpan = document.getElementById('filename');
+
+        // Check if bridge is online
+        (async () => {
+            const online = await scanner.isAvailable();
+            if(online) {
+                statusDiv.innerText = "✅ Bridge Connected";
+                statusDiv.classList.add('success');
+                
+                // List devices
+                const devices = await scanner.getDevices();
+                if(devices.length > 0) {
+                     const deviceList = document.createElement('ul');
+                     devices.forEach(d => {
+                         const li = document.createElement('li');
+                         li.innerText = d;
+                         deviceList.appendChild(li);
+                     });
+                     statusDiv.appendChild(document.createElement('hr'));
+                     statusDiv.appendChild(document.createTextNode("Available Scanners:"));
+                     statusDiv.appendChild(deviceList);
+                } else {
+                    const msg = document.createElement('div');
+                    msg.innerText = "No scanners found (or NAPS2 not configured).";
+                    msg.style.color = 'orange';
+                    statusDiv.appendChild(msg);
+                }
+
+            } else {
+                statusDiv.innerText = "❌ Bridge Offline (Run 'npx scan2form-server')";
+                statusDiv.classList.add('error');
+            }
+        })();
+
+        document.getElementById('scan-btn').addEventListener('click', async () => {
+            statusDiv.innerText = "⏳ Scanning...";
+            statusDiv.className = 'status'; // reset colors
+            
+            const result = await scanner.scanToInput('document-upload');
+
+            if (result.success) {
+                statusDiv.innerText = "✅ Scan Success!";
+                statusDiv.classList.add('success');
+                previewDiv.style.display = 'block';
+                filenameSpan.innerText = result.file.name + ` (${Math.round(result.file.size/1024)} KB)`;
+            } else {
+                statusDiv.innerText = "❌ Scan Failed: " + (result.error.message || "Unknown error");
+                statusDiv.classList.add('error');
+            }
+        });
+    </script>
+</body>
+</html>

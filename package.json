@@ -5,8 +5,9 @@
   "main": "dist/scanner-client.js",
   "scripts": {
     "start": "node dist/bridge-server.js",
+    "example": "npm run build && npm start",
     "dev": "nodemon src/bridge-server.ts",
-    "build": "tsc",
+    "build": "tsc && tsc src/scanner-client.ts --target es2020 --module es2020 --moduleResolution node --outDir dist/esm",
     "test": "jest",
     "prepublishOnly": "npm run build"
   },

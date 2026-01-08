@@ -15,6 +15,18 @@ export class Scan2Form {
         }
     }
 
+    // List available scanners
+    async getDevices(): Promise<string[]> {
+        try {
+            const res = await fetch(`${this.bridgeUrl}/devices`);
+            if(!res.ok) return [];
+            const data = await res.json();
+            return data.devices || [];
+        } catch (e) {
+            return [];
+        }
+    }
+
     // Rule 5.2 & 5.3: Trigger Scan & Receive Blob
     async scanToInput(inputId: string): Promise<{ success: boolean; file?: File; error?: any }> {
         const inputElement = document.getElementById(inputId) as HTMLInputElement;
