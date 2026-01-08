@@ -35,7 +35,7 @@ To make scanning work, the user needs two things installed on their computer:
 We rely on a local scanning engine. You can use either **NAPS2** (Recommended for Windows) or **SANE** (Recommended for macOS/Linux).
 
 **Option A: NAPS2 (Windows)**
-*   **[Download NAPS2](https://www.naps2.com/download.html)** and install it.
+*   **[Download NAPS2](https://github.com/cyanfish/naps2/releases#:~:text=naps2%2D8.2.1%2Dwin%2Darm64.exe)** and install it.
 *   **Important:** Ensure `naps2.console` is available in your system PATH.
 *   [How to configure NAPS2 Command Line](https://www.naps2.com/doc/command-line)
 
