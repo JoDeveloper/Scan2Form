@@ -70,8 +70,9 @@ app.get('/devices', (req, res) => {
                  res.json({ devices });
              });
         } else {
-            console.error("No scanner software found (NAPS2 or SANE).");
-            res.json([]);
+            const msg = "No scanner software found. Please install NAPS2 (Windows) or SANE (Mac/Linux).";
+            console.error(msg);
+            res.json({ devices: [], error: msg });
         }
     });
 });

@@ -39,6 +39,11 @@ We rely on a local scanning engine. You can use either **NAPS2** (Recommended fo
 *   **Important:** Ensure `naps2.console` is available in your system PATH.
 *   [How to configure NAPS2 Command Line](https://www.naps2.com/doc/command-line)
 
+    > **Tip (Windows PowerShell):** You can set up an alias to make it simple:
+    > ```powershell
+    > function naps2.console { . "C:\Program Files\NAPS2\NAPS2.Console.exe" $args }
+    > ```
+
 **Option B: SANE (macOS / Linux)**
 *   **macOS:** Install via Homebrew: `brew install sane-backends`
 *   **Linux:** Install via apt: `sudo apt-get install sane-utils`

@@ -59,10 +59,20 @@
                 statusDiv.classList.add('success');
                 
                 // List devices
-                const devices = await scanner.getDevices();
-                if(devices.length > 0) {
+                const result = await scanner.getDevices();
+                
+                if (result.error) {
+                    const msg = document.createElement('div');
+                    msg.innerHTML = `⚠️ <b>Error:</b> ${result.error}`;
+                    msg.style.color = 'red';
+                    msg.style.backgroundColor = '#ffe6e6';
+                    msg.style.padding = '10px';
+                    msg.style.marginTop = '10px';
+                    msg.style.borderRadius = '5px';
+                    statusDiv.appendChild(msg);
+                } else if(result.devices.length > 0) {
                      const deviceList = document.createElement('ul');
-                     devices.forEach(d => {
+                     result.devices.forEach(d => {
                          const li = document.createElement('li');
                          li.innerText = d;
                          deviceList.appendChild(li);
@@ -72,7 +82,7 @@
                      statusDiv.appendChild(deviceList);
                 } else {
                     const msg = document.createElement('div');
-                    msg.innerText = "No scanners found (or NAPS2 not configured).";
+                    msg.innerText = "No scanners connected.";
                     msg.style.color = 'orange';
                     statusDiv.appendChild(msg);
                 }

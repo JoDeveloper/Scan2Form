@@ -16,14 +16,14 @@ export class Scan2Form {
     }
 
     // List available scanners
-    async getDevices(): Promise<string[]> {
+    async getDevices(): Promise<{ devices: string[], error?: string }> {
         try {
             const res = await fetch(`${this.bridgeUrl}/devices`);
-            if(!res.ok) return [];
+            if(!res.ok) return { devices: [], error: res.statusText };
             const data = await res.json();
-            return data.devices || [];
+            return { devices: data.devices || [], error: data.error };
         } catch (e) {
-            return [];
+            return { devices: [], error: "Bridge unreachable" };
         }
     }
 
