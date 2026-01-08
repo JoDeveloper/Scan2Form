@@ -6,12 +6,12 @@ export class Scan2Form {
     }
 
     // Rule 5.1: Detect Bridge
-    async isAvailable(): Promise<boolean> {
+    async isAvailable(): Promise<{ success: boolean; error?: string }> {
         try {
             const res = await fetch(`${this.bridgeUrl}/health`);
-            return res.ok;
-        } catch (e) {
-            return false;
+            return { success: res.ok };
+        } catch (e: any) {
+            return { success: false, error: e.message || "Network Error" };
         }
     }
 
@@ -55,7 +55,7 @@ export class Scan2Form {
             console.error("Scan2Form Error:", error);
             // Alerting might be annoying in a library, maybe optional? Leaving as is for now but usually libraries shouldn't alert.
             // alert("Ensure Scan2Form Bridge is running!"); 
-            return { success: false, error: error };
+            return { success: false, error: (error as any).message || "An unknown error occurred during scan." };
         }
     }
 }

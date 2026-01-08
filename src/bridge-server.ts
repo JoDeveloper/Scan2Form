@@ -92,14 +92,16 @@ app.post('/scan', async (req, res) => {
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`NAPS2 Error: ${error.message}`);
-                    return res.status(500).json({ error: "Scan failed", details: stderr });
+                    // Return the actual error details to the client
+                    const errorDetail = stderr || error.message;
+                    return res.status(500).json({ error: "Scan failed", details: errorDetail });
                 }
                 if (fs.existsSync(finalPdfPath)) {
                     res.sendFile(finalPdfPath, () => {
                         fs.unlink(finalPdfPath, (err) => { if(err) console.error("Cleanup error:", err); });
                     });
                 } else {
-                    res.status(500).json({ error: "Scan completed but PDF not found." });
+                    res.status(500).json({ error: "Scan completed but PDF not found.", details: "Output file missing." });
                 }
             });
         } else if (engine === 'sane') {
@@ -114,7 +116,8 @@ app.post('/scan', async (req, res) => {
                      // scanimage writes progress to stderr, so it might not be a real error unless exit code != 0.
                      // But exec gives error on non-zero exit.
                      console.error(`SANE Error: ${error.message}`);
-                     return res.status(500).json({ error: "Scan failed", details: stderr });
+                     const errorDetail = stderr || error.message;
+                     return res.status(500).json({ error: "Scan failed", details: errorDetail });
                  }
 
                  // Convert TIFF to PDF using Mac's 'sips' or ImageMagick 'convert'
