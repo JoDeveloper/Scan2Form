@@ -58,6 +58,11 @@ npx scan2form-server
 *   Keep this running while scanning.
 *   It runs locally at `http://127.0.0.1:3000`.
 
+**Alternative:**
+We've included shortcut scripts in the package. If you have the files locally:
+*   **Windows:** Double-click `start-server.bat`
+*   **Mac/Linux:** Run `./start-server.sh`
+
 ---
 
 ## 🛠️ System Requirements
