@@ -31,10 +31,18 @@ That's it! The file input is now populated with a PDF, just as if the user uploa
 
 To make scanning work, the user needs two things installed on their computer:
 
-### 1. The Scanner Engine (NAPS2)
-We use the popular open-source NAPS2 engine to talk to drivers (TWAIN/WIA/SANE).
-*   **[Download NAPS2](https://www.naps2.com/)** and install it.
-*   **Important:** Ensure `naps2.console` is available in your system PATH (Standard installation usually handles this).
+### 1. The Scanner Engine
+We rely on a local scanning engine. You can use either **NAPS2** (Recommended for Windows) or **SANE** (Recommended for macOS/Linux).
+
+**Option A: NAPS2 (Windows)**
+*   **[Download NAPS2](https://www.naps2.com/download.html)** and install it.
+*   **Important:** Ensure `naps2.console` is available in your system PATH.
+*   [How to configure NAPS2 Command Line](https://www.naps2.com/doc/command-line)
+
+**Option B: SANE (macOS / Linux)**
+*   **macOS:** Install via Homebrew: `brew install sane-backends`
+*   **Linux:** Install via apt: `sudo apt-get install sane-utils`
+*   Verify installation by running `scanimage --version` in your terminal.
 
 ### 2. The Bridge Server
 This tiny server listens for commands from your website.
