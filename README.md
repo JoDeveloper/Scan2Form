@@ -19,7 +19,7 @@ import { Scan2Form } from 'scan2form';
 
 const scanner = new Scan2Form();
 
-// Triggers the scan and puts the file into <input type="file" id="my-input" />
+// Triggers the scan and puts the file into <input type="file" id="my-input" style="display: none;"/>
 await scanner.scanToInput('my-input');
 ```
 
