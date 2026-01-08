@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run build"
   },
   "bin": {
-    "scan2form-server": "./dist/bridge-server.js"
+    "scan2form-server": "dist/bridge-server.js"
   },
   "types": "./dist/scanner-client.d.ts",
   "files": [
