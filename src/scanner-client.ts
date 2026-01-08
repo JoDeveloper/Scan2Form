@@ -1,4 +1,4 @@
-export class SudanScan {
+export class Scan2Form {
     private bridgeUrl: string;
 
     constructor(bridgeUrl: string = 'http://127.0.0.1:3000') {
@@ -40,9 +40,9 @@ export class SudanScan {
             return { success: true, file: file };
 
         } catch (error) {
-            console.error("SudanScan Error:", error);
+            console.error("Scan2Form Error:", error);
             // Alerting might be annoying in a library, maybe optional? Leaving as is for now but usually libraries shouldn't alert.
-            // alert("Ensure SudanScan Bridge is running!"); 
+            // alert("Ensure Scan2Form Bridge is running!"); 
             return { success: false, error: error };
         }
     }

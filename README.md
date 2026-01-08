@@ -56,9 +56,9 @@ Import the library and use it to trigger a scan. The result will be automaticall
 
 #### JavaScript / TypeScript
 ```javascript
-import { SudanScan } from 'scan2form';
+import { Scan2Form } from 'scan2form';
 
-const scanner = new SudanScan();
+const scanner = new Scan2Form();
 
 document.getElementById('scan-btn').addEventListener('click', async () => {
     // This looks for <input id="scanner-input">

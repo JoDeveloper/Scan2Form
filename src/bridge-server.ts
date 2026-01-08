@@ -60,6 +60,6 @@ export { app };
 
 if (require.main === module) {
     app.listen(PORT, '127.0.0.1', () => {
-        console.log(`SudanScan Bridge running at http://127.0.0.1:${PORT}`);
+        console.log(`Scan2Form Bridge running at http://127.0.0.1:${PORT}`);
     });
 }
