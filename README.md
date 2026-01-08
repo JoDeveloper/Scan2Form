@@ -6,10 +6,26 @@ Since browsers cannot directly access hardware, this package provides:
 1.  **A Local Bridge Server**: Runs on the user's machine to talk to the scanner via NAPS2.
 2.  **A Client Library**: Running in your web app to request scans and inject the result directly into your `<input type="file">`.
 
-## Prerequisites
+## 🛠️ System Requirements (Crucial)
 
-*   **Node.js** installed on the user's machine.
-*   **NAPS2 (Not Another PDF Scanner 2)** installed and added to the system PATH (or available via `naps2.console`).
+This bridge relies on ** NAPS2 ** to handle the low-level hardware communication. You must install the Console version on the host machine.
+
+### 1. Install Node.js
+Ensure you have [Node.js](https://nodejs.org/) (v16 or higher) installed.
+
+### 2. Install Scanner Engine (NAPS2)
+The bridge sends commands to `naps2.console`.
+
+- **Windows:**
+  1. Download and install [NAPS2](https://www.naps2.com/).
+  2. Add the installation folder (e.g., `C:\Program Files\NAPS2`) to your System **PATH** environment variable.
+  3. Verify by opening CMD and typing: `naps2.console`
+
+- **Linux (Ubuntu/Debian):**
+  ```bash
+  sudo apt install naps2
+  # Or download the .deb from naps2.com if not in repos
+  ```
 
 ## Installation
 
