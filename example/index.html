@@ -20,17 +20,17 @@
         
         <!-- The form we want to populate -->
         <form id="my-form" action="#" onsubmit="alert('Form submitted with file!'); return false;">
-            <label for="format-select">Format:</label>
-            <select id="format-select">
-                <option value="pdf">PDF Document</option>
-                <option value="jpeg">JPEG Image</option>
-                <option value="png">PNG Image</option>
-            </select>
-            <br><br>
+            
+            <div style="margin-bottom: 20px;">
+                <label><b>Scan Mode:</b></label>
+                <label><input type="radio" name="mode" value="application/pdf" checked onchange="updateMode(this.value)"> Document (PDF)</label>
+                <label><input type="radio" name="mode" value="image/jpeg" onchange="updateMode(this.value)"> Photo (JPEG)</label>
+            </div>
 
-            <label for="document-upload">Document:</label>
+            <label for="document-upload">Target Input:</label>
             <!-- Standard file input (Hidden) -->
-            <input type="file" id="document-upload" name="document" required style="display: none;" />
+            <!-- We set accept="application/pdf" by default -->
+            <input type="file" id="document-upload" name="document" accept="application/pdf" required style="display: none;" />
             <div id="file-display">No file scanned yet.</div>
             <br><br>
             
@@ -67,7 +67,13 @@
         const statusDiv = document.getElementById('status');
         const previewDiv = document.getElementById('preview');
         const filenameSpan = document.getElementById('filename');
-        const formatSelect = document.getElementById('format-select');
+        const fileInput = document.getElementById('document-upload');
+
+        // Helper to switch input mode
+        window.updateMode = (mimeType) => {
+            fileInput.accept = mimeType;
+            console.log("Input accept set to:", mimeType);
+        }
 
         // Check if bridge is online
         (async () => {
@@ -112,25 +118,23 @@
         })();
 
         document.getElementById('scan-btn').addEventListener('click', async () => {
-            const format = formatSelect.value;
-            statusDiv.innerText = `⏳ Scanning as ${format.toUpperCase()}...`;
+            statusDiv.innerText = `⏳ Scanning...`;
             statusDiv.className = 'status'; // reset colors
             
             // Reset previews
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('preview-frame').style.display = 'none';
 
-            // Choose the correct preview element based on format
-            let targetPreviewId = null;
-            if (format === 'pdf') {
-                targetPreviewId = 'preview-frame';
-            } else {
-                targetPreviewId = 'preview-img';
-            }
+            // Determine preview intent (just for UI cleanup, the library handles the data)
+            // But we need to tell library where to put it. 
+            // We can pass both IDs or just one dynamic one.
+            // Since library takes one ID, we can intelligently pick based on current mode for this demo.
+            const isImage = fileInput.accept.includes('image');
+            const targetPreviewId = isImage ? 'preview-img' : 'preview-frame';
 
+            // We do NOT pass 'format'. The library will infer it from fileInput.accept!
             const result = await scanner.scan({
                 targetInputId: 'document-upload',
-                format: format,
                 previewElementId: targetPreviewId
             });
 
@@ -140,7 +144,6 @@
                 previewDiv.style.display = 'block';
                 filenameSpan.innerText = result.file.name + ` (${Math.round(result.file.size/1024)} KB)`;
                 
-                // Explicitly show the element we used (though library sets src, we need to ensure display block)
                 document.getElementById(targetPreviewId).style.display = 'block';
                 
             } else {

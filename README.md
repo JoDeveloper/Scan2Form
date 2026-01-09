@@ -19,14 +19,14 @@ import { Scan2Form } from 'scan2form';
 
 const scanner = new Scan2Form();
 
-// Triggers the scan and puts the file into <input type="file" id="my-input" />
+// Triggers the scan. 
+// If your input has accept="image/*", it scans as JPEG. Default is PDF.
 await scanner.scanToInput('my-input');
 
-// OR use the new advanced options (Images & Preview)
+// OR use advanced options (e.g. for preview)
 await scanner.scan({
-    targetInputId: 'my-input',
-    format: 'jpeg', // 'pdf' | 'jpeg' | 'png' | 'jpg'
-    previewElementId: 'scan-preview' // ID of an <img>, <iframe>, <object>, or <embed> tag
+    targetInputId: 'my-input', 
+    previewElementId: 'scan-preview'
 });
 ```
 

@@ -42,10 +42,25 @@ export class Scan2Form {
         // Backward compatibility: if string, treat as inputId
         let config: ScanOptions = {};
         if (typeof options === 'string') {
-            config = { targetInputId: options, format: 'pdf' };
+            config = { targetInputId: options };
         } else {
-            config = { format: 'pdf', ...options };
+            config = { ...options };
         }
+
+        // Rule 5.6: Auto-detect format from Input "accept" attribute if not specified
+        if (!config.format && config.targetInputId) {
+             const input = document.getElementById(config.targetInputId) as HTMLInputElement;
+             if (input && input.accept) {
+                 const accept = input.accept.toLowerCase();
+                 if (accept.includes('image/png')) {
+                     config.format = 'png';
+                 } else if (accept.includes('image/jpeg') || accept.includes('image/jpg') || accept.includes('image/*')) {
+                     config.format = 'jpeg'; // Default image format
+                 }
+             }
+        }
+        // Default to PDF
+        if (!config.format) config.format = 'pdf';
 
         try {
             const response = await fetch(`${this.bridgeUrl}/scan`, {
