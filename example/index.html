@@ -79,6 +79,20 @@
             console.log("Input accept set to:", mimeType);
         }
 
+        // Update display when input changes
+        fileInput.addEventListener('change', () => {
+             const display = document.getElementById('file-display');
+             if (fileInput.files.length > 0) {
+                 display.innerText = "📁 File Ready: " + fileInput.files[0].name;
+                 display.style.color = 'green';
+                 display.style.fontWeight = 'bold';
+             } else {
+                 display.innerText = "No file scanned yet.";
+                 display.style.color = 'inherit';
+                 display.style.fontWeight = 'normal';
+             }
+        });
+
         // Check if bridge is online
         (async () => {
             const online = await scanner.isAvailable();
@@ -135,6 +149,7 @@
             const targetPreviewId = isImage ? 'preview-img' : 'preview-frame';
 
             let result;
+            let result;
             try {
                 if (useMock) {
                     // Mock Flow
@@ -145,6 +160,12 @@
                     const mockFile = await createMockFile(fileInput.accept);
                     result = { success: true, file: mockFile };
                     
+                    // Manually populate input for mock
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(mockFile);
+                    fileInput.files = dataTransfer.files;
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
                     // Manually trigger preview for mock
                     const url = URL.createObjectURL(mockFile);
                     const el = document.getElementById(targetPreviewId);
