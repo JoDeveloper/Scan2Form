@@ -79,7 +79,18 @@ app.get('/devices', (req, res) => {
 
 app.post('/scan', async (req, res) => {
     const scanId = uuidv4();
-    const finalPdfPath = path.join(TEMP_DIR, `scan_${scanId}.pdf`);
+    // Default to PDF if not specified
+    const format = (req.body.format || 'pdf').toLowerCase();
+    
+    // Usage: format can be 'pdf', 'jpg', 'jpeg', 'png'
+    const allowedFormats = ['pdf', 'jpg', 'jpeg', 'png'];
+    if (!allowedFormats.includes(format)) {
+        return res.status(400).json({ error: "Invalid format. Supported: pdf, jpg, png" });
+    }
+
+    // Map format to file extension
+    const ext = format === 'jpeg' ? 'jpg' : format;
+    const finalFilePath = path.join(TEMP_DIR, `scan_${scanId}.${ext}`);
 
     getScannerEngine((engine) => {
         if (!engine) {
@@ -87,42 +98,45 @@ app.post('/scan', async (req, res) => {
         }
 
         if (engine === 'naps2') {
-            const cmd = `naps2.console -o "${finalPdfPath}" -v`;
-            console.log(`Scanning with NAPS2: ${cmd}`);
+            // NAPS2 detects format by extension
+            const cmd = `naps2.console -o "${finalFilePath}" -v`;
+            console.log(`Scanning with NAPS2 (${format}): ${cmd}`);
+            
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`NAPS2 Error: ${error.message}`);
-                    // Return the actual error details to the client
                     const errorDetail = stderr || error.message;
                     return res.status(500).json({ error: "Scan failed", details: errorDetail });
                 }
-                if (fs.existsSync(finalPdfPath)) {
-                    res.sendFile(finalPdfPath, () => {
-                        fs.unlink(finalPdfPath, (err) => { if(err) console.error("Cleanup error:", err); });
+                if (fs.existsSync(finalFilePath)) {
+                    res.sendFile(finalFilePath, () => {
+                        fs.unlink(finalFilePath, (err) => { if(err) console.error("Cleanup error:", err); });
                     });
                 } else {
-                    res.status(500).json({ error: "Scan completed but PDF not found.", details: "Output file missing." });
+                    res.status(500).json({ error: "Scan completed but file not found.", details: "Output file missing." });
                 }
             });
         } else if (engine === 'sane') {
-            // SANE flow: scanimage -> tiff -> sips -> pdf
+            // SANE flow: scanimage -> tiff -> sips -> target format
             const tempTiffPath = path.join(TEMP_DIR, `scan_${scanId}.tiff`);
-            // Default to batch access or single scan. `scanimage --format=tiff > output.tiff`
             const cmd = `scanimage --format=tiff --mode Color --resolution 300 > "${tempTiffPath}"`; 
             
             console.log(`Scanning with SANE: ${cmd}`);
             exec(cmd, (error, stdout, stderr) => {
                  if (error) {
-                     // scanimage writes progress to stderr, so it might not be a real error unless exit code != 0.
-                     // But exec gives error on non-zero exit.
                      console.error(`SANE Error: ${error.message}`);
                      const errorDetail = stderr || error.message;
                      return res.status(500).json({ error: "Scan failed", details: errorDetail });
                  }
 
-                 // Convert TIFF to PDF using Mac's 'sips' or ImageMagick 'convert'
-                 // Since we are targeting Mac fallback, we use 'sips'
-                 const convertCmd = `sips -s format pdf "${tempTiffPath}" --out "${finalPdfPath}"`;
+                 // Convert TIFF to Target Format using 'sips'
+                 // sips support: pdf, jpeg, png
+                 let sipsFormat = format;
+                 if (format === 'jpg') sipsFormat = 'jpeg';
+
+                 const convertCmd = `sips -s format ${sipsFormat} "${tempTiffPath}" --out "${finalFilePath}"`;
+                 
+                 console.log(`Converting: ${convertCmd}`);
                  exec(convertCmd, (cErr, cOut, cStderr) => {
                      // Cleanup TIFF immediately
                      if(fs.existsSync(tempTiffPath)) fs.unlinkSync(tempTiffPath);
@@ -132,12 +146,12 @@ app.post('/scan', async (req, res) => {
                          return res.status(500).json({ error: "Image conversion failed" });
                      }
 
-                     if (fs.existsSync(finalPdfPath)) {
-                        res.sendFile(finalPdfPath, () => {
-                            fs.unlink(finalPdfPath, (err) => { if(err) console.error("Cleanup error:", err); });
+                     if (fs.existsSync(finalFilePath)) {
+                        res.sendFile(finalFilePath, () => {
+                            fs.unlink(finalFilePath, (err) => { if(err) console.error("Cleanup error:", err); });
                         });
                      } else {
-                        res.status(500).json({ error: "Conversion completed but PDF not found." });
+                        res.status(500).json({ error: "Conversion completed but file not found." });
                      }
                  });
             });

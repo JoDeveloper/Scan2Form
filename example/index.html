@@ -20,6 +20,14 @@
         
         <!-- The form we want to populate -->
         <form id="my-form" action="#" onsubmit="alert('Form submitted with file!'); return false;">
+            <label for="format-select">Format:</label>
+            <select id="format-select">
+                <option value="pdf">PDF Document</option>
+                <option value="jpeg">JPEG Image</option>
+                <option value="png">PNG Image</option>
+            </select>
+            <br><br>
+
             <label for="document-upload">Document:</label>
             <!-- Standard file input (Hidden) -->
             <input type="file" id="document-upload" name="document" required style="display: none;" />
@@ -31,7 +39,16 @@
         </form>
 
         <div id="status" class="status"></div>
-        <div id="preview">File attached: <span id="filename"></span></div>
+        
+        <div id="preview">
+            <h3>Preview:</h3>
+            <div id="preview-container">
+                <!-- Preview elements will be auto-populated by the library -->
+                <img id="preview-img" style="max-width: 100%; display: none;" />
+                <iframe id="preview-frame" style="width: 100%; height: 500px; display: none; border: 1px solid #ccc;"></iframe>
+            </div>
+            <div>File attached: <span id="filename"></span></div>
+        </div>
     </div>
 
     <!-- We will bundle the library or import it. For this example we assume a script tag or module. -->
@@ -50,6 +67,7 @@
         const statusDiv = document.getElementById('status');
         const previewDiv = document.getElementById('preview');
         const filenameSpan = document.getElementById('filename');
+        const formatSelect = document.getElementById('format-select');
 
         // Check if bridge is online
         (async () => {
@@ -94,16 +112,37 @@
         })();
 
         document.getElementById('scan-btn').addEventListener('click', async () => {
-            statusDiv.innerText = "⏳ Scanning...";
+            const format = formatSelect.value;
+            statusDiv.innerText = `⏳ Scanning as ${format.toUpperCase()}...`;
             statusDiv.className = 'status'; // reset colors
             
-            const result = await scanner.scanToInput('document-upload');
+            // Reset previews
+            document.getElementById('preview-img').style.display = 'none';
+            document.getElementById('preview-frame').style.display = 'none';
+
+            // Choose the correct preview element based on format
+            let targetPreviewId = null;
+            if (format === 'pdf') {
+                targetPreviewId = 'preview-frame';
+            } else {
+                targetPreviewId = 'preview-img';
+            }
+
+            const result = await scanner.scan({
+                targetInputId: 'document-upload',
+                format: format,
+                previewElementId: targetPreviewId
+            });
 
             if (result.success) {
                 statusDiv.innerText = "✅ Scan Success!";
                 statusDiv.classList.add('success');
                 previewDiv.style.display = 'block';
                 filenameSpan.innerText = result.file.name + ` (${Math.round(result.file.size/1024)} KB)`;
+                
+                // Explicitly show the element we used (though library sets src, we need to ensure display block)
+                document.getElementById(targetPreviewId).style.display = 'block';
+                
             } else {
                 statusDiv.innerText = "❌ Scan Failed: " + (result.error.message || "Unknown error");
                 statusDiv.classList.add('error');
