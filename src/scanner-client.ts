@@ -26,20 +26,6 @@ export class Scan2Form {
                 return { devices: [], error: data.error || data.message || res.statusText };
             }
             
-            // Server now returns generic objects, but client expects strings for backward compat or we update the return type
-            // The previous client returned strings. The new server returns { name: string }[] but map handles strings too?
-            // Wait, server returns { devices: [{name: '...'}] } ? No, previous server returned strings in some cases or objects?
-            // Let's check server implementation:
-            // Naps2Engine: listDevices returns { name: string }[]
-            // Bridge Server: devices.map... wait bridge server returns res.json({ devices }) which is { devices: [{name:'...'}] }
-            // The OLD Scan2Form client expected { devices: string[] }.
-            // So I should map it back to strings here to preserve compatibility OR update the return type.
-            // The user asked for "Ambiguity Fix: typed ScanResult<T>".
-            // I'll update the return type to be more robust.
-            
-            // If server returns objects, map to names for compatibility, or return objects.
-            // Let's check what the server sends. 
-            // `res.json({ devices })` where devices is `engine.listDevices()` -> `Device[]` -> `{name: string}[]`.
             
             return { 
                 devices: Array.isArray(data.devices) 
