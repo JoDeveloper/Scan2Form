@@ -1,6 +1,6 @@
 {
   "name": "scan2form",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Local offline bridge allowing web browsers to access physical scanners (WIA, TWAIN, SANE).",
   "main": "dist/scanner-client.js",
   "scripts": {
