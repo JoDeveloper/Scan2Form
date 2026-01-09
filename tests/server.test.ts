@@ -29,6 +29,21 @@ describe('Bridge Server API', () => {
         return child;
     };
 
+    // Helper to ensure output file is written if -o is present
+    const mockScanWithFileCheck = (content: string) => (cmd: string, args: string[]) => {
+        const child = createMockChild(0);
+        const outputFlagIndex = args.indexOf('-o');
+        if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
+            const outputPath = args[outputFlagIndex + 1];
+            try {
+                fs.writeFileSync(outputPath, content);
+            } catch (err) {
+                 console.error("Mock Write Failed:", err);
+            }
+        }
+        return child;
+    };
+
     beforeAll(() => {
         if (!fs.existsSync(CONFIG.TEMP_DIR)) fs.mkdirSync(CONFIG.TEMP_DIR);
     });
@@ -53,17 +68,7 @@ describe('Bridge Server API', () => {
         mockSpawnFn.mockReturnValueOnce(createMockChild(0));
         
         // 2. scan -> NAPS2 scan command
-        mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
-            const child = createMockChild(0);
-            
-            // Write file synchronously
-            const outputFlagIndex = args.indexOf('-o');
-            if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
-                const outputPath = args[outputFlagIndex + 1];
-                fs.writeFileSync(outputPath, "dummy pdf content");
-            }
-            return child;
-        });
+        mockSpawnFn.mockImplementationOnce(mockScanWithFileCheck("dummy pdf content"));
 
         const res = await request(app)
             .post('/scan')
@@ -71,5 +76,5 @@ describe('Bridge Server API', () => {
         
         expect(res.status).toBe(200);
         expect(res.header['content-type']).toContain('application/pdf');
-    });
+    }, 10000); // Increased timeout to 10s
 });

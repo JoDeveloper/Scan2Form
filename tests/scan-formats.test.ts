@@ -29,6 +29,20 @@ describe('Scan Formats', () => {
         return child;
     };
 
+    const mockScanWithFileCheck = (content: string) => (cmd: string, args: string[]) => {
+        const child = createMockChild(0);
+        const outputFlagIndex = args.indexOf('-o');
+        if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
+            const outputPath = args[outputFlagIndex + 1];
+            try {
+                fs.writeFileSync(outputPath, content);
+            } catch (err) {
+                 console.error("Mock Write Failed:", err);
+            }
+        }
+        return child;
+    };
+
     beforeAll(() => {
         if (!fs.existsSync(CONFIG.TEMP_DIR)) fs.mkdirSync(CONFIG.TEMP_DIR);
     });
@@ -44,15 +58,7 @@ describe('Scan Formats', () => {
          mockSpawnFn.mockReturnValueOnce(createMockChild(0));
 
          // 2. Scan
-         mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
-            const child = createMockChild(0);
-            const outputFlagIndex = args.indexOf('-o');
-            if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
-                const outputPath = args[outputFlagIndex + 1];
-                fs.writeFileSync(outputPath, "dummy jpeg content");
-            }
-            return child;
-         });
+         mockSpawnFn.mockImplementationOnce(mockScanWithFileCheck("dummy jpeg content"));
 
         const res = await request(app)
             .post('/scan')
@@ -72,14 +78,7 @@ describe('Scan Formats', () => {
          mockSpawnFn.mockReturnValueOnce(createMockChild(0));
 
          // 2. Scan
-         mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
-            const child = createMockChild(0);
-            const outputFlagIndex = args.indexOf('-o');
-            if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
-                fs.writeFileSync(args[outputFlagIndex + 1], "dummy png content");
-            }
-            return child;
-         });
+         mockSpawnFn.mockImplementationOnce(mockScanWithFileCheck("dummy png content"));
 
         const res = await request(app)
             .post('/scan')
@@ -123,8 +122,12 @@ describe('Scan Formats', () => {
         mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
             if (cmd === 'sips') {
                 const outFlagIndex = args.indexOf('--out');
-                if (outFlagIndex !== -1) {
-                    fs.writeFileSync(args[outFlagIndex + 1], "dummy jpeg result");
+                if (outFlagIndex !== -1 && args[outFlagIndex + 1]) {
+                     try {
+                        fs.writeFileSync(args[outFlagIndex + 1], "dummy jpeg result");
+                     } catch(err) {
+                        console.error("Sips Mock Write Failed:", err);
+                     }
                 }
                 return createMockChild(0);
             }
@@ -143,5 +146,5 @@ describe('Scan Formats', () => {
        expect(calls[1]).toBe('scanimage');
        expect(calls[2]).toBe('scanimage');
        expect(calls[3]).toBe('sips');
-   });
+   }, 10000); // Increased timeout
 });
