@@ -191,7 +191,8 @@
                 document.getElementById(targetPreviewId).style.display = 'block';
                 
             } else {
-                statusDiv.innerText = "❌ Scan Failed: " + (result.error.message || "Unknown error");
+                const errMsg = result.error.message || result.error || "Unknown error";
+                statusDiv.innerText = "❌ Scan Failed: " + errMsg;
                 statusDiv.classList.add('error');
             }
         });
