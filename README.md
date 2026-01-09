@@ -19,26 +19,20 @@ import { Scan2Form } from 'scan2form';
 
 const scanner = new Scan2Form();
 
-// Triggers the scan. 
-// If your input has accept="image/*", it scans as JPEG. Default is PDF.
+// Triggers the scan and populates the input with a PDF.
 await scanner.scanToInput('my-input');
-
-// OR use advanced options (e.g. for preview)
-await scanner.scan({
-    targetInputId: 'my-input', 
-    previewElementId: 'scan-preview'
-});
 ```
 
-## 🖼️ Supported Formats & Preview
-**Scan2Form** now supports multiple formats:
-*   **PDF** (Default)
-*   **JPEG / JPG**
-*   **PNG**
+## 🛠️ Handling Previews
+Since `scanToInput` returns the file object, you can easily display a preview yourself:
 
-To preview a scan immediately, simply provide the ID of an HTML element in `previewElementId`.
-*   For images, use an `<img>` tag.
-*   For PDFs, use `<iframe>`, `<embed>`, or `<object>`.
+```javascript
+const result = await scanner.scanToInput('my-input');
+if (result.success) {
+    const url = URL.createObjectURL(result.file);
+    document.getElementById('my-preview-iframe').src = url;
+}
+```
 
 That's it! The file input is now populated with a PDF, just as if the user uploaded it manually.
 
