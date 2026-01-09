@@ -1,49 +1,57 @@
-
 import request from 'supertest';
-import { app } from '../src/bridge-server';
-import { exec } from 'child_process';
+import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
+import { CONFIG } from '../src/config';
 
-// Mock child_process.exec
+// Define the mock function globally
+const mockSpawnFn = jest.fn();
+
 jest.mock('child_process', () => ({
-    exec: jest.fn()
+    spawn: mockSpawnFn
 }));
 
 describe('Scan Formats', () => {
-    const TEMP_DIR = path.join(__dirname, '../src/temp_scans');
+    let app: any;
+
+    const createMockChild = (code = 0, stdoutStr = '', stderrStr = '', delay = 10) => {
+        const child: any = new EventEmitter();
+        child.stdout = new EventEmitter();
+        child.stderr = new EventEmitter();
+        child.kill = jest.fn();
+        
+        setTimeout(() => {
+            if (stdoutStr) child.stdout.emit('data', stdoutStr);
+            if (stderrStr) child.stderr.emit('data', stderrStr);
+            child.emit('close', code);
+        }, delay);
+        
+        return child;
+    };
 
     beforeAll(() => {
-        if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
+        if (!fs.existsSync(CONFIG.TEMP_DIR)) fs.mkdirSync(CONFIG.TEMP_DIR);
     });
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        mockSpawnFn.mockReset();
+        jest.resetModules();
+        app = require('../src/bridge-server').app;
     });
 
-    // Test NAPS2 Image Support
     test('NAPS2: POST /scan with format=jpeg generates .jpg extension', async () => {
-         // 1. Setup mock for NAPS2 detection (success) and Scan (success)
-         (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
-             // 1a. Detection check
-             if (cmd.includes('naps2.console --help')) {
-                 return callback(null, "", ""); // Success -> NAPS2 detected
-             }
+         // 1. Detection
+         mockSpawnFn.mockReturnValueOnce(createMockChild(0));
 
-             // 1b. Scan command
-             if (cmd.includes('naps2.console') && cmd.includes('-o')) {
-                 // Verify extension is correct
-                 const match = cmd.match(/-o "(.*?)"/);
-                 if (match && match[1]) {
-                     const outputPath = match[1];
-                     // Just creating a dummy file so the server can send it back
-                     fs.writeFileSync(outputPath, "dummy jpeg content");
-                     return callback(null, "Done", "");
-                 }
-             }
-             
-             // Fallback
-             callback(new Error(`Unknown cmd: ${cmd}`), "", "Error");
+         // 2. Scan
+         mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
+            const child = createMockChild(0);
+            const outputFlagIndex = args.indexOf('-o');
+            if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
+                const outputPath = args[outputFlagIndex + 1];
+                fs.writeFileSync(outputPath, "dummy jpeg content");
+            }
+            return child;
          });
 
         const res = await request(app)
@@ -51,28 +59,26 @@ describe('Scan Formats', () => {
             .send({ format: 'jpeg' });
         
         expect(res.status).toBe(200);
-        // Verify Content-Type inferred from extension
         expect(res.header['content-type']).toContain('image/jpeg');
         
-        // Verify Command structure
-        const lastCallArgs = (exec as unknown as jest.Mock).mock.calls;
-        // Find the scan call
-        const scanCall = lastCallArgs.find(args => args[0].includes('-o '));
-        expect(scanCall[0]).toMatch(/\.jpg"/); // Should end in .jpg"
+        const lastCallArgs = mockSpawnFn.mock.calls[1]; // 1 is scan
+        const args = lastCallArgs[1];
+        const outputPath = args[args.indexOf('-o') + 1];
+        expect(outputPath).toMatch(/\.jpg$/);
     });
 
     test('NAPS2: POST /scan with format=png generates .png extension', async () => {
-         (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
-             if (cmd.includes('naps2.console --help')) return callback(null, "", "");
-             
-             if (cmd.includes('naps2.console')) {
-                 const match = cmd.match(/-o "(.*?)"/);
-                 if (match && match[1]) {
-                     fs.writeFileSync(match[1], "dummy png content");
-                     return callback(null, "Done", "");
-                 }
-             }
-             callback(null, "", "");
+         // 1. Detection
+         mockSpawnFn.mockReturnValueOnce(createMockChild(0));
+
+         // 2. Scan
+         mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
+            const child = createMockChild(0);
+            const outputFlagIndex = args.indexOf('-o');
+            if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
+                fs.writeFileSync(args[outputFlagIndex + 1], "dummy png content");
+            }
+            return child;
          });
 
         const res = await request(app)
@@ -82,47 +88,47 @@ describe('Scan Formats', () => {
         expect(res.status).toBe(200);
         expect(res.header['content-type']).toContain('image/png');
         
-        const lastCallArgs = (exec as unknown as jest.Mock).mock.calls;
-        const scanCall = lastCallArgs.find(args => args[0].includes('-o '));
-        expect(scanCall[0]).toMatch(/\.png"/);
+        const lastCallArgs = mockSpawnFn.mock.calls[1];
+        const outputPath = lastCallArgs[1][lastCallArgs[1].indexOf('-o') + 1];
+        expect(outputPath).toMatch(/\.png$/);
     });
 
-    // Test SANE + SIPS Support (Simulate Mac)
     test('SANE: POST /scan with format=jpeg uses sips conversion', async () => {
-        (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
-             // 1. Fail NAPS2 detection
-             if (cmd.includes('naps2.console --help')) {
-                 return callback(new Error("Not found"), "", ""); 
-             }
-             // 2. Succeed SANE detection
-             if (cmd.includes('scanimage --version')) {
-                 return callback(null, "version 1.0", "");
-             }
+        // 1. Fail NAPS2 detection
+        mockSpawnFn.mockReturnValueOnce(createMockChild(1));
+        // 2. Succeed SANE detection
+        mockSpawnFn.mockReturnValueOnce(createMockChild(0));
 
-             // 3. Handle Scan (scanimage)
-             if (cmd.includes('scanimage --format=tiff')) {
-                 const match = cmd.match(/> "(.*?)"/);
-                 if(match && match[1]) {
-                     fs.writeFileSync(match[1], "dummy tiff"); // create temp tiff
-                 }
-                 return callback(null, "", "");
-             }
-
-             // 4. Handle Conversion (sips)
-             if (cmd.includes('sips -s format')) {
-                 // Check if format is jpeg
-                 if (!cmd.includes('sips -s format jpeg')) {
-                      return callback(new Error("Wrong sips format"), "", "");
-                 }
-
-                 const match = cmd.match(/--out "(.*?)"/);
-                 if (match && match[1]) {
-                     fs.writeFileSync(match[1], "dummy jpeg result");
-                     return callback(null, "", "");
-                 }
-             }
+        // 3. Scan (scanimage)
+        mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
+            if (cmd !== 'scanimage') return createMockChild(1);
+            
+            const child: any = new EventEmitter();
+             child.stdout = new EventEmitter();
+             child.stdout.pipe = (dest: any) => {
+                 dest.write("dummy tiff content");
+                 dest.end();
+                 return dest;
+             };
+             child.stderr = new EventEmitter();
+             child.kill = jest.fn();
              
-             callback(new Error(`Unknown: ${cmd}`));
+             setTimeout(() => {
+                 child.emit('close', 0);
+             }, 10);
+             return child;
+        });
+
+        // 4. Convert (sips)
+        mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {
+            if (cmd === 'sips') {
+                const outFlagIndex = args.indexOf('--out');
+                if (outFlagIndex !== -1) {
+                    fs.writeFileSync(args[outFlagIndex + 1], "dummy jpeg result");
+                }
+                return createMockChild(0);
+            }
+            return createMockChild(1);
         });
 
        const res = await request(app)
@@ -130,11 +136,12 @@ describe('Scan Formats', () => {
            .send({ format: 'jpeg' });
        
        expect(res.status).toBe(200);
-       expect(res.header['content-type']).toContain('image/jpeg'); // express.sendFile sets this based on ext
+       expect(res.header['content-type']).toContain('image/jpeg');
        
-       // Verify sips called
-       const calls = (exec as unknown as jest.Mock).mock.calls.map(c => c[0]);
-       expect(calls.some(c => c.includes('scanimage --format=tiff'))).toBe(true);
-       expect(calls.some(c => c.includes('sips -s format jpeg'))).toBe(true);
+       const calls = mockSpawnFn.mock.calls.map((c: any) => c[0]);
+       expect(calls[0]).toBe('naps2.console');
+       expect(calls[1]).toBe('scanimage');
+       expect(calls[2]).toBe('scanimage');
+       expect(calls[3]).toBe('sips');
    });
 });
