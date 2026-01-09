@@ -34,6 +34,10 @@
             <div id="file-display">No file scanned yet.</div>
             <br><br>
             
+            <label style="display:inline-flex; align-items:center; margin-bottom: 10px; color: #555;">
+                <input type="checkbox" id="mock-check"> &nbsp; Simulate Scan (Test Mode)
+            </label>
+            <br>
             <button type="button" id="scan-btn">🖨️ Scan from Device</button>
             <button type="submit">Submit Form</button>
         </form>
@@ -118,28 +122,48 @@
         })();
 
         document.getElementById('scan-btn').addEventListener('click', async () => {
-            statusDiv.innerText = `⏳ Scanning...`;
+            const useMock = document.getElementById('mock-check').checked;
+            statusDiv.innerText = useMock ? "🔮 Simulating Scan..." : "⏳ Scanning...";
             statusDiv.className = 'status'; // reset colors
             
             // Reset previews
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('preview-frame').style.display = 'none';
 
-            // Determine preview intent (just for UI cleanup, the library handles the data)
-            // But we need to tell library where to put it. 
-            // We can pass both IDs or just one dynamic one.
-            // Since library takes one ID, we can intelligently pick based on current mode for this demo.
+            // Determine preview intent
             const isImage = fileInput.accept.includes('image');
             const targetPreviewId = isImage ? 'preview-img' : 'preview-frame';
 
-            // We do NOT pass 'format'. The library will infer it from fileInput.accept!
-            const result = await scanner.scan({
-                targetInputId: 'document-upload',
-                previewElementId: targetPreviewId
-            });
+            let result;
+            try {
+                if (useMock) {
+                    // Mock Flow
+                    await new Promise(r => setTimeout(r, 1000)); // Fake delay
+                    
+                    if (!fileInput.accept) throw new Error("Input accept attribute missing");
+                    
+                    const mockFile = await createMockFile(fileInput.accept);
+                    result = { success: true, file: mockFile };
+                    
+                    // Manually trigger preview for mock
+                    const url = URL.createObjectURL(mockFile);
+                    const el = document.getElementById(targetPreviewId);
+                    el.src = url;
+
+                } else {
+                    // Real Flow
+                    result = await scanner.scan({
+                        targetInputId: 'document-upload',
+                        previewElementId: targetPreviewId
+                    });
+                }
+            } catch (err) {
+                console.error("Scan/Mock Error:", err);
+                result = { success: false, error: err };
+            }
 
             if (result.success) {
-                statusDiv.innerText = "✅ Scan Success!";
+                statusDiv.innerText = useMock ? "✅ Simulation Success!" : "✅ Scan Success!";
                 statusDiv.classList.add('success');
                 previewDiv.style.display = 'block';
                 filenameSpan.innerText = result.file.name + ` (${Math.round(result.file.size/1024)} KB)`;
@@ -151,6 +175,22 @@
                 statusDiv.classList.add('error');
             }
         });
+
+        // Mock File Generator
+        async function createMockFile(accept) {
+            const isPdf = accept.includes('pdf');
+            if (isPdf) {
+                // Minimal valid PDF binary
+                const pdfBase64 = "JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmoKPDwKICAvVHlwZSAvUGFnZXwKICAvTWVkaWFCb3ggWyAwIDAgMjAwIDIwMCBdCiAgL0NvdW50IDEKICAvS2lkcyBbIDMgMCBSIF0KPj4KZW5kb2JqCgozIDAgb2JqCjw8CiAgL1R5cGUgL1BhZ2UKICAvUGFyZW50IDIgMCBSC4gIC9SZXNvdXJjZXMgPDwKICAgIC9Gb250IDw8CiAgICAgIC9FMSA0IDAgUgogICAgPj4KICA+PgogIC9Db250ZW50cyA1IDAgUgo+PgplbmRvYmoKCjQgMCBvYmoKPDwKICAvVHlwZSAvRm9udAogIC9TdWJ0eXBlIC9UeXBlMQogIC9QmFzZUZvbnQgL0hlbHZldGljYQo+PgplbmRvYmoKCjUgMCBvYmoKPDwgL0xlbmd0aCA0NCA+PgpzdHJlYW0KQlQKNzAgNTAgVEQKL0YxIDEyIFRmCihIZWxsbywgdGhpcyBpcyBhIE1PQ0sgUERGISEpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxMCAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxNTcgMDAwMDAgbiAKMDAwMDAwMDI1OCAwMDAwMCBuIAowMDAwMDAwMzQ1IDAwMDAwIG4gCnRyYWlsZXIKPDwKICAvU2l6ZSA2CiAgL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjQ0MQolJUVPRgo=";
+                const blob = await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob();
+                return new File([blob], "mock_scan.pdf", { type: "application/pdf" });
+            } else {
+                // 1x1 Pixel Red Dot (PNG)
+                const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+                const blob = await (await fetch(`data:image/png;base64,${pngBase64}`)).blob();
+                return new File([blob], "mock_scan.png", { type: "image/png" });
+            }
+        }
     </script>
 </body>
 </html>
