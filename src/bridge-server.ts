@@ -105,6 +105,7 @@ app.post('/scan', async (req, res) => {
             exec(cmd, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`NAPS2 Error: ${error.message}`);
+                    // Return the actual error details to the client
                     const errorDetail = stderr || error.message;
                     return res.status(500).json({ error: "Scan failed", details: errorDetail });
                 }
@@ -119,11 +120,14 @@ app.post('/scan', async (req, res) => {
         } else if (engine === 'sane') {
             // SANE flow: scanimage -> tiff -> sips -> target format
             const tempTiffPath = path.join(TEMP_DIR, `scan_${scanId}.tiff`);
+            // Default to batch access or single scan. `scanimage --format=tiff > output.tiff`
             const cmd = `scanimage --format=tiff --mode Color --resolution 300 > "${tempTiffPath}"`; 
             
             console.log(`Scanning with SANE: ${cmd}`);
             exec(cmd, (error, stdout, stderr) => {
                  if (error) {
+                     // scanimage writes progress to stderr, so it might not be a real error unless exit code != 0.
+                     // But exec gives error on non-zero exit.
                      console.error(`SANE Error: ${error.message}`);
                      const errorDetail = stderr || error.message;
                      return res.status(500).json({ error: "Scan failed", details: errorDetail });

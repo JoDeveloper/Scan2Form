@@ -172,10 +172,8 @@
 
                 } else {
                     // Real Flow
-                    result = await scanner.scan({
-                        targetInputId: 'document-upload',
-                        previewElementId: targetPreviewId
-                    });
+                    // Reverted client only has scanToInput(inputId)
+                    result = await scanner.scanToInput('document-upload');
                 }
             } catch (err) {
                 console.error("Scan/Mock Error:", err);
@@ -188,6 +186,11 @@
                 previewDiv.style.display = 'block';
                 filenameSpan.innerText = result.file.name + ` (${Math.round(result.file.size/1024)} KB)`;
                 
+                // Manually handle preview (required for reverted client)
+                const url = URL.createObjectURL(result.file);
+                const el = document.getElementById(targetPreviewId);
+                el.src = url;
+
                 document.getElementById(targetPreviewId).style.display = 'block';
                 
             } else {
@@ -202,7 +205,7 @@
             const isPdf = accept.includes('pdf');
             if (isPdf) {
                 // Minimal valid PDF binary
-                const pdfBase64 = "JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmoKPDwKICAvVHlwZSAvUGFnZXwKICAvTWVkaWFCb3ggWyAwIDAgMjAwIDIwMCBdCiAgL0NvdW50IDEKICAvS2lkcyBbIDMgMCBSIF0KPj4KZW5kb2JqCgozIDAgb2JqCjw8CiAgL1R5cGUgL1BhZ2UKICAvUGFyZW50IDIgMCBSC4gIC9SZXNvdXJjZXMgPDwKICAgIC9Gb250IDw8CiAgICAgIC9FMSA0IDAgUgogICAgPj4KICA+PgogIC9Db250ZW50cyA1IDAgUgo+PgplbmRvYmoKCjQgMCBvYmoKPDwKICAvVHlwZSAvRm9udAogIC9TdWJ0eXBlIC9UeXBlMQogIC9QmFzZUZvbnQgL0hlbHZldGljYQo+PgplbmRvYmoKCjUgMCBvYmoKPDwgL0xlbmd0aCA0NCA+PgpzdHJlYW0KQlQKNzAgNTAgVEQKL0YxIDEyIFRmCihIZWxsbywgdGhpcyBpcyBhIE1PQ0sgUERGISEpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxMCAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxNTcgMDAwMDAgbiAKMDAwMDAwMDI1OCAwMDAwMCBuIAowMDAwMDAwMzQ1IDAwMDAwIG4gCnRyYWlsZXIKPDwKICAvU2l6ZSA2CiAgL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjQ0MQolJUVPRgo=";
+                const pdfBase64 = "JVBERi0xLjcKCjEgMCBvYmogPCwvb3V0bGluZXMgbnVsbC9wYWdlcyAyIDAgUi9UeXBlL0NhdGFsb2c+PgplbmRvYmoKMiAwIG9iago8PC9Db3VudCAxL0tpZHNbIDMgMCBSRS9UeXBlL1BhZ2VzPj4KZW5kb2JqCjMgMCBvYmoKPDwKVHlwZSAvUGFnZQovTWVkaWFCb3ggWzAgMCA2MTIgNzkyXQovUGFyZW50IDIgMCBSCj4+CmVuZG9iagoKeHJlZgowIDQKMDAwMDAwMDAwMCA2NTUzNSBmCjAwMDAwMDAwMTAgMDAwMDAgbgowMDAwMDAwMDc5IDAwMDAwIG4KMDAwMDAwMDEzNCAwMDAwMCBuCnRyYWlsZXI8PC9TaXplIDQvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgoxODMKJSVFT0YK";
                 const blob = await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob();
                 return new File([blob], "mock_scan.pdf", { type: "application/pdf" });
             } else {
