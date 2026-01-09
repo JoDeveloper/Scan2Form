@@ -49,6 +49,13 @@ describe('Scan Formats', () => {
 
     beforeEach(() => {
         mockSpawnFn.mockReset();
+        
+        // Default impl to prevent crash
+        mockSpawnFn.mockImplementation((cmd: string, args: string[]) => {
+            console.warn(`[UNMOCKED SPAWN] ${cmd} ${args ? args.join(' ') : ''}`);
+            return createMockChild(1, "", "Unmocked Spawn Call"); 
+        });
+
         jest.resetModules();
         app = require('../src/bridge-server').app;
     });
@@ -146,5 +153,5 @@ describe('Scan Formats', () => {
        expect(calls[1]).toBe('scanimage');
        expect(calls[2]).toBe('scanimage');
        expect(calls[3]).toBe('sips');
-   }, 10000); // Increased timeout
+   }, 10000); 
 });

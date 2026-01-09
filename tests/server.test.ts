@@ -50,6 +50,13 @@ describe('Bridge Server API', () => {
 
     beforeEach(() => {
         mockSpawnFn.mockReset(); // Clear calls and implementations
+        
+        // Default implementation to handle unexpected calls without crashing
+        mockSpawnFn.mockImplementation((cmd: string, args: string[]) => {
+            console.warn(`[UNMOCKED SPAWN] ${cmd} ${args ? args.join(' ') : ''}`);
+            return createMockChild(1, "", "Unmocked Spawn Call"); 
+        });
+
         jest.resetModules();
         app = require('../src/bridge-server').app;
     });
@@ -76,5 +83,5 @@ describe('Bridge Server API', () => {
         
         expect(res.status).toBe(200);
         expect(res.header['content-type']).toContain('application/pdf');
-    }, 10000); // Increased timeout to 10s
+    }, 10000); 
 });
