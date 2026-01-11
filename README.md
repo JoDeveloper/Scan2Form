@@ -19,7 +19,7 @@ import { Scan2Form } from 'scan2form';
 
 const scanner = new Scan2Form();
 
-// Triggers the scan and populates the input with a PDF.
+// Triggers the scan and populates the input with the scanned file.
 await scanner.scanToInput('my-input');
 ```
 
@@ -34,7 +34,7 @@ if (result.success) {
 }
 ```
 
-That's it! The file input is now populated with a PDF, just as if the user uploaded it manually.
+That's it! The file input is now populated with the scanned document, just as if the user uploaded it manually.
 
 ---
 
