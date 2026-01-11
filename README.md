@@ -47,6 +47,7 @@ We rely on a local scanning engine. You can use either **NAPS2** (Recommended fo
 
 **Option A: NAPS2 (Windows)**
 *   **[Download NAPS2](https://github.com/cyanfish/naps2/releases#:~:text=naps2%2D8.2.1%2Dwin%2Darm64.exe)** and install it.
+
 *   **Important:** Ensure `naps2.console` is available in your system PATH.
 *   [How to configure NAPS2 Command Line](https://www.naps2.com/doc/command-line)
 
@@ -62,10 +63,12 @@ We rely on a local scanning engine. You can use either **NAPS2** (Recommended fo
 
 ### 2. The Bridge Server
 This tiny server listens for commands from your website.
+
 ```bash
 # Run this command in your terminal
 npx scan2form-server
 ```
+
 *   Keep this running while scanning.
 *   It runs locally at `http://127.0.0.1:3000`.
 
