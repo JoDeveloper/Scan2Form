@@ -38,9 +38,9 @@ That's it! The file input is now populated with the scanned document, just as if
 
 ---
 
-## 🖥️ Setup for End-Users
+## 🖥️ Setup
 
-To make scanning work, the user needs two things installed on their computer:
+To make scanning work, you need two things installed on your computer:
 
 ### 1. The Scanner Engine
 We rely on a local scanning engine. You can use either **NAPS2** (Recommended for Windows) or **SANE** (Recommended for macOS/Linux).
