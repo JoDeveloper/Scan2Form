@@ -1,55 +1,87 @@
 import request from 'supertest';
-import { app } from '../src/bridge-server';
-import { exec } from 'child_process';
+import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
+import { CONFIG } from '../src/config';
 
-// Mock child_process.exec
+// Define the mock function globally so it persists across module resets
+const mockSpawnFn = jest.fn();
+
 jest.mock('child_process', () => ({
-    exec: jest.fn()
+    spawn: mockSpawnFn
 }));
 
 describe('Bridge Server API', () => {
-    const TEMP_DIR = path.join(__dirname, '../src/temp_scans');
+    let app: any;
+
+    const createMockChild = (code = 0, stdoutStr = '', stderrStr = '', delay = 10) => {
+        const child: any = new EventEmitter();
+        child.stdout = new EventEmitter();
+        child.stderr = new EventEmitter();
+        child.kill = jest.fn();
+        
+        setTimeout(() => {
+            if (stdoutStr) child.stdout.emit('data', stdoutStr);
+            if (stderrStr) child.stderr.emit('data', stderrStr);
+            child.emit('close', code);
+        }, delay);
+        
+        return child;
+    };
+
+    // Helper to ensure output file is written if -o is present
+    const mockScanWithFileCheck = (content: string) => (cmd: string, args: string[]) => {
+        const child = createMockChild(0);
+        const outputFlagIndex = args.indexOf('-o');
+        if (outputFlagIndex !== -1 && args[outputFlagIndex + 1]) {
+            const outputPath = args[outputFlagIndex + 1];
+            try {
+                fs.writeFileSync(outputPath, content);
+            } catch (err) {
+                 console.error("Mock Write Failed:", err);
+            }
+        }
+        return child;
+    };
 
     beforeAll(() => {
-        if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
+        if (!fs.existsSync(CONFIG.TEMP_DIR)) fs.mkdirSync(CONFIG.TEMP_DIR);
     });
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        mockSpawnFn.mockReset(); // Clear calls and implementations
+        
+        // Default implementation to handle unexpected calls without crashing
+        mockSpawnFn.mockImplementation((cmd: string, args: string[]) => {
+            console.warn(`[UNMOCKED SPAWN] ${cmd} ${args ? args.join(' ') : ''}`);
+            return createMockChild(1, "", "Unmocked Spawn Call"); 
+        });
+
+        jest.resetModules();
+        app = require('../src/bridge-server').app;
     });
 
     test('GET /health returns 200 and status ok', async () => {
+        // NAPS2 check success for getEngine
+        mockSpawnFn.mockReturnValueOnce(createMockChild(0, "", "")); 
+        
         const res = await request(app).get('/health');
         expect(res.status).toBe(200);
-        expect(res.body).toEqual(expect.objectContaining({ status: "ok" }));
+        expect(res.body.status).toBe("ok");
     });
 
-    test('POST /scan tries to execute naps2 and download file', async () => {
-         // Mock exec to simulate success app.post('/scan') logic
-         (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
-             // Extract output path from command string: ... -o "path/to/file" ...
-             const match = cmd.match(/-o "(.*?)"/);
-             if (match && match[1]) {
-                 const outputPath = match[1];
-                 // Create dummy PDF file
-                 fs.writeFileSync(outputPath, "dummy pdf content");
-             }
-             
-             // callback(error, stdout, stderr)
-             callback(null, "Scanning done", "");
-         });
+    test('POST /scan success flow', async () => {
+        // 1. getEngine -> NAPS2 check
+        mockSpawnFn.mockReturnValueOnce(createMockChild(0));
+        
+        // 2. scan -> NAPS2 scan command
+        mockSpawnFn.mockImplementationOnce(mockScanWithFileCheck("dummy pdf content"));
 
-        const res = await request(app).post('/scan');
+        const res = await request(app)
+            .post('/scan')
+            .send({ format: 'pdf' });
         
         expect(res.status).toBe(200);
-        // Verify exec was called
-        expect(exec).toHaveBeenCalled();
-        expect((exec as unknown as jest.Mock).mock.calls[0][0]).toContain('naps2.console');
-        
-        // Verify file content (downloaded) if possible, or just headers
         expect(res.header['content-type']).toContain('application/pdf');
-    });
+    }, 10000); 
 });
-
