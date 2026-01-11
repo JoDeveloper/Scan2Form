@@ -14,9 +14,12 @@ jest.mock('child_process', () => ({
 describe('Bridge Server API', () => {
     let app: any;
 
-    const createMockChild = (code = 0, stdoutStr = '', stderrStr = '', delay = 10) => {
+    const createMockChild = (code = 0, stdoutStr = '', stderrStr = '', delay = 100) => {
         const child: any = new EventEmitter();
         child.stdout = new EventEmitter();
+        // Add pipe to stdout for SaneEngine compatibility
+        child.stdout.pipe = (dest: any) => child.stdout.on('data', (d: any) => dest.write(d));
+        
         child.stderr = new EventEmitter();
         child.kill = jest.fn();
         
@@ -63,7 +66,7 @@ describe('Bridge Server API', () => {
 
     test('GET /health returns 200 and status ok', async () => {
         // NAPS2 check success for getEngine
-        mockSpawnFn.mockReturnValueOnce(createMockChild(0, "", "")); 
+        mockSpawnFn.mockImplementationOnce(() => createMockChild(0, "", "")); 
         
         const res = await request(app).get('/health');
         expect(res.status).toBe(200);
@@ -72,7 +75,7 @@ describe('Bridge Server API', () => {
 
     test('POST /scan success flow', async () => {
         // 1. getEngine -> NAPS2 check
-        mockSpawnFn.mockReturnValueOnce(createMockChild(0));
+        mockSpawnFn.mockImplementationOnce(() => createMockChild(0));
         
         // 2. scan -> NAPS2 scan command
         mockSpawnFn.mockImplementationOnce(mockScanWithFileCheck("dummy pdf content"));

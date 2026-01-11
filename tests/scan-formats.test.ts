@@ -14,9 +14,12 @@ jest.mock('child_process', () => ({
 describe('Scan Formats', () => {
     let app: any;
 
-    const createMockChild = (code = 0, stdoutStr = '', stderrStr = '', delay = 10) => {
+    const createMockChild = (code = 0, stdoutStr = '', stderrStr = '', delay = 100) => {
         const child: any = new EventEmitter();
         child.stdout = new EventEmitter();
+        // Add pipe to stdout for SaneEngine compatibility
+        child.stdout.pipe = (dest: any) => child.stdout.on('data', (d: any) => dest.write(d));
+
         child.stderr = new EventEmitter();
         child.kill = jest.fn();
         
@@ -62,7 +65,7 @@ describe('Scan Formats', () => {
 
     test('NAPS2: POST /scan with format=jpeg generates .jpg extension', async () => {
          // 1. Detection
-         mockSpawnFn.mockReturnValueOnce(createMockChild(0));
+         mockSpawnFn.mockImplementationOnce(() => createMockChild(0));
 
          // 2. Scan
          mockSpawnFn.mockImplementationOnce(mockScanWithFileCheck("dummy jpeg content"));
@@ -82,7 +85,7 @@ describe('Scan Formats', () => {
 
     test('NAPS2: POST /scan with format=png generates .png extension', async () => {
          // 1. Detection
-         mockSpawnFn.mockReturnValueOnce(createMockChild(0));
+         mockSpawnFn.mockImplementationOnce(() => createMockChild(0));
 
          // 2. Scan
          mockSpawnFn.mockImplementationOnce(mockScanWithFileCheck("dummy png content"));
@@ -101,9 +104,9 @@ describe('Scan Formats', () => {
 
     test('SANE: POST /scan with format=jpeg uses sips conversion', async () => {
         // 1. Fail NAPS2 detection
-        mockSpawnFn.mockReturnValueOnce(createMockChild(1));
+        mockSpawnFn.mockImplementationOnce(() => createMockChild(1));
         // 2. Succeed SANE detection
-        mockSpawnFn.mockReturnValueOnce(createMockChild(0));
+        mockSpawnFn.mockImplementationOnce(() => createMockChild(0));
 
         // 3. Scan (scanimage)
         mockSpawnFn.mockImplementationOnce((cmd: string, args: string[]) => {

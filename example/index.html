@@ -55,15 +55,9 @@
         </div>
     </div>
 
-    <!-- We will bundle the library or import it. For this example we assume a script tag or module. -->
-    <!-- Since we are in the package repo, we might need to build/link it. -->
     
     <script type="module">
         // In a real app, this would be: import { Scan2Form } from 'scan2form';
-        // Here we point to the dist file for demonstration if served correctly, 
-        // or we use a bundler approach. To keep it simple, we'll assume the user
-        // builds the project and we can import from relative path if supported by browser 
-        // (needs .js extension and type="module").
         
         import { Scan2Form } from '../dist/esm/scanner-client.js';
 
