@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { ScannerEngine } from './scanner-engine';
+import { ScannerEngine, ScanEvent } from './scanner-engine';
 import { Device, ScanOptions } from '../types';
 import { runCommand } from '../utils';
 import { ScanError } from '../errors';
@@ -33,7 +33,7 @@ export class SaneEngine implements ScannerEngine {
         }
     }
 
-    async scan(options: ScanOptions, outputPath: string): Promise<void> {
+    async scan(scanId: string, options: ScanOptions, outputPath: string, onEvent: (event: ScanEvent) => void): Promise<void> {
         const tempTiffPath = outputPath.replace(/\.\w+$/, '.tiff');
         
         try {
@@ -41,9 +41,9 @@ export class SaneEngine implements ScannerEngine {
             const args = ['--format=tiff', '--mode', 'Color', '--resolution', '300'];
             if (options.deviceId) {
                  args.push('-d', options.deviceId); 
-                 // Note: Device ID handling needs care given the string format, 
-                 // but for SANE 'deviceId' is usually the name/address.
             }
+
+            onEvent({ type: 'progress', scanId, payload: { message: 'Starting SANE scan...', percent: 0 } });
 
             await new Promise<void>((resolve, reject) => {
                 const fileStream = fs.createWriteStream(tempTiffPath);
@@ -62,13 +62,18 @@ export class SaneEngine implements ScannerEngine {
                 child.on('error', reject);
             });
 
+            onEvent({ type: 'progress', scanId, payload: { message: 'Converting file...', percent: 80 } });
+
             // Conversion
             let sipsFormat = options.format;
             if (options.format === 'jpg') sipsFormat = 'jpeg';
             
             await runCommand('sips', ['-s', 'format', sipsFormat, tempTiffPath, '--out', outputPath]);
 
+            onEvent({ type: 'complete', scanId, payload: { path: outputPath } });
+
         } catch (e: any) {
+            onEvent({ type: 'error', scanId, payload: { error: e.message } });
             throw new ScanError('SCAN_FAILED', 'SANE scan failed', e.message);
         } finally {
              if (fs.existsSync(tempTiffPath)) fs.unlinkSync(tempTiffPath);

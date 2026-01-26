@@ -1,4 +1,4 @@
-import { ScannerEngine } from './scanner-engine';
+import { ScannerEngine, ScanEvent } from './scanner-engine';
 import { Device, ScanOptions } from '../types';
 import { runCommand } from '../utils';
 import { ScanError } from '../errors';
@@ -26,15 +26,21 @@ export class Naps2Engine implements ScannerEngine {
         }
     }
 
-    async scan(options: ScanOptions, outputPath: string): Promise<void> {
+    async scan(scanId: string, options: ScanOptions, outputPath: string, onEvent: (event: ScanEvent) => void): Promise<void> {
         try {
             const args = ['-o', outputPath, '-v'];
-            // If deviceId is provided, NAPS2 might support it via specific flags or profile, 
-            // but for now we stick to default behavior or profile usage if previously configured.
-            // If explicit device name selection is needed, NAPS2 usually uses profiles.
+            // If deviceId is provided, NAPS2 might support it via specific flags or profile.
             
+            // TODO: In future, parse stdout for progress to emit 'progress' events.
+            onEvent({ type: 'progress', scanId, payload: { message: 'Starting scan...', percent: 0 } });
+
             await runCommand('naps2.console', args);
+
+            // For now, we only support 'complete' after the process finishes.
+            onEvent({ type: 'complete', scanId, payload: { path: outputPath } });
+
         } catch (e: any) {
+             onEvent({ type: 'error', scanId, payload: { error: e.message } });
             throw new ScanError('SCAN_FAILED', 'NAPS2 scan failed', e.message);
         }
     }

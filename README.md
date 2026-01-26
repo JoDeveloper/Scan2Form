@@ -19,8 +19,30 @@ import { Scan2Form } from 'scan2form';
 
 const scanner = new Scan2Form();
 
-// Triggers the scan and populates the input with the scanned file.
-await scanner.scanToInput('my-input');
+// Option A: Simple Async/Await (Simulated)
+// Triggers the scan and resolves when complete. 
+// Note: This uses the new WebSocket architecture under the hood.
+const result = await scanner.scanToInput('my-input');
+if (result.success) {
+    console.log("File scanned:", result.file);
+}
+
+// Option B: Real-time Events (Recommended)
+await scanner.connect();
+
+scanner.on('scan:progress', (data) => {
+    console.log(`Scanning: ${data.percent}% - ${data.message}`);
+});
+
+scanner.on('scan:page', (data) => {
+    console.log("Page received!");
+});
+
+scanner.on('scan:complete', (data) => {
+    console.log("Scan finished!");
+});
+
+scanner.startScan({ format: 'pdf' });
 ```
 
 ## 🛠️ Handling Previews
@@ -30,6 +52,7 @@ Since `scanToInput` returns the file object, you can easily display a preview yo
 const result = await scanner.scanToInput('my-input');
 if (result.success) {
     const url = URL.createObjectURL(result.file);
+    // Preview in an iframe (PDF) or img (JPEG)
     document.getElementById('my-preview-iframe').src = url;
 }
 ```

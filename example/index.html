@@ -30,7 +30,7 @@
             <label for="document-upload">Target Input:</label>
             <!-- Standard file input (Hidden) -->
             <!-- We set accept="application/pdf" by default -->
-            <input type="file" id="document-upload" name="document" accept="application/pdf" required style="display: none;" />
+            <input type="file" id="document-upload" name="document" accept="application/pdf" style="display: none;" />
             <div id="file-display">No file scanned yet.</div>
             <br><br>
             
@@ -53,8 +53,18 @@
             </div>
             <div>File attached: <span id="filename"></span></div>
         </div>
+
+        <div id="event-log" style="margin-top:20px; border:1px solid #ddd; padding:10px; background:#f9f9f9; height:150px; overflow-y:scroll; font-family:monospace; font-size:12px;"></div>
     </div>
 
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "socket.io-client": "/lib/socket.io-client/socket.io.esm.min.js"
+            }
+        }
+    </script>
     
     <script type="module">
         // In a real app, this would be: import { Scan2Form } from 'scan2form';
@@ -66,6 +76,14 @@
         const previewDiv = document.getElementById('preview');
         const filenameSpan = document.getElementById('filename');
         const fileInput = document.getElementById('document-upload');
+        const eventLog = document.getElementById('event-log');
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            eventLog.appendChild(div);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
 
         // Helper to switch input mode
         window.updateMode = (mimeType) => {
@@ -89,11 +107,26 @@
 
         // Check if bridge is online
         (async () => {
+            log('Checking bridge status...');
             const online = await scanner.isAvailable();
-            if(online) {
+            if(online.success) {
                 statusDiv.innerText = "✅ Bridge Connected";
                 statusDiv.classList.add('success');
+                log('Bridge Connected.');
                 
+                 await scanner.connect(); // Ensure socket connected
+                
+                // Set up global listeners
+                scanner.on('scan:started', (data) => log(`Event: scan:started (ID: ${data.scanId})`));
+                scanner.on('scan:progress', (data) => {
+                    log(`Event: scan:progress - ${data.message} (${data.percent}%)`);
+                    statusDiv.innerText = `⏳ ${data.message} (${data.percent}%)`;
+                });
+                scanner.on('scan:page', (data) => log(`Event: scan:page - Page received`));
+                // Note: scan:complete and scan:error handled in scanToInput wrapper logic too, but we can log them here.
+                scanner.on('scan:complete', (data) => log(`Event: scan:complete`));
+                scanner.on('scan:error', (data) => log(`Event: scan:error - ${data.message}`));
+
                 // List devices
                 const result = await scanner.getDevices();
                 
@@ -122,10 +155,10 @@
                     msg.style.color = 'orange';
                     statusDiv.appendChild(msg);
                 }
-
             } else {
                 statusDiv.innerText = "❌ Bridge Offline (Run 'npx scan2form-server')";
                 statusDiv.classList.add('error');
+                log('Bridge Offline.');
             }
         })();
 
@@ -137,16 +170,24 @@
             // Reset previews
             document.getElementById('preview-img').style.display = 'none';
             document.getElementById('preview-frame').style.display = 'none';
+            eventLog.innerHTML = ''; // Clear log
+            log('Starting Scan...');
 
             // Determine preview intent
             const isImage = fileInput.accept.includes('image');
+            const format = isImage ? 'jpeg' : 'pdf';
             const targetPreviewId = isImage ? 'preview-img' : 'preview-frame';
 
             let result;
             try {
                 if (useMock) {
                     // Mock Flow
-                    await new Promise(r => setTimeout(r, 1000)); // Fake delay
+                    await new Promise(r => setTimeout(r, 500)); // Fake scanning delay
+                    log('Mock: Connected');
+                     await new Promise(r => setTimeout(r, 500));
+                     log('Mock: Scanning page 1...');
+                     await new Promise(r => setTimeout(r, 500));
+                     log('Mock: Complete');
                     
                     if (!fileInput.accept) throw new Error("Input accept attribute missing");
                     
@@ -165,9 +206,9 @@
                     el.src = url;
 
                 } else {
-                    // Real Flow
-                    // Reverted client only has scanToInput(inputId)
-                    result = await scanner.scanToInput('document-upload');
+                     // Real WebSocket Scan
+                    // We use the wrapper for simplicity in this demo, but the events above will fire!
+                    result = await scanner.scanToInput('document-upload', { format });
                 }
             } catch (err) {
                 console.error("Scan/Mock Error:", err);
@@ -185,12 +226,14 @@
                 const el = document.getElementById(targetPreviewId);
                 el.src = url;
 
-                document.getElementById(targetPreviewId).style.display = 'block';
+                el.style.display = 'block';
+                log(`Scan Result: ${result.file.name}`);
                 
             } else {
                 const errMsg = result.error.message || result.error || "Unknown error";
                 statusDiv.innerText = "❌ Scan Failed: " + errMsg;
                 statusDiv.classList.add('error');
+                log(`Error: ${errMsg}`);
             }
         });
 
@@ -204,7 +247,7 @@
                 return new File([blob], "mock_scan.pdf", { type: "application/pdf" });
             } else {
                 // 1x1 Pixel Red Dot (PNG)
-                const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAADMElEQVR4nOzVwQnAIBQFQYXff81RUkQCOyDj1YOPnbXWPmeTRef+/3O/OyBjzh3CD95BfqICMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMO0TAAD";
+                const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAADMElEQVR4nOzVwQnAIBQFQYXff81RUkQCOyDj1YOPnbXWPmeTRef+/3O/OyBjzh3CD95BfqICMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMWO0TAAD";
                 const blob = await (await fetch(`data:image/png;base64,${pngBase64}`)).blob();
                 return new File([blob], "mock_scan.png", { type: "image/png" });
             }

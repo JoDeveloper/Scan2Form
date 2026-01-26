@@ -7,7 +7,7 @@
     "start": "node dist/bridge-server.js",
     "example": "npm run build && npm start",
     "dev": "nodemon src/bridge-server.ts",
-    "build": "tsc && tsc src/scanner-client.ts --target es2020 --module es2020 --moduleResolution node --outDir dist/esm",
+    "build": "tsc && tsc src/scanner-client.ts --target es2020 --module es2020 --moduleResolution node --esModuleInterop --outDir dist/esm",
     "test": "jest",
     "prepublishOnly": "npm run build"
   },
@@ -35,6 +35,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -42,6 +44,8 @@
     "@types/express": "^4.17.21",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.10.6",
+    "@types/socket.io": "^3.0.1",
+    "@types/socket.io-client": "^1.4.36",
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^9.0.7",
     "jest": "^30.2.0",
