@@ -1,4 +1,4 @@
-# Scan2Form 🖨️ -> 🌐
+# Scan2Form
 
 **Scan documents from a physical scanner directly into your web form.**
 
@@ -6,7 +6,7 @@ Typically, browsers can't access scanners. **Scan2Form** solves this by running 
 
 ---
 
-## 🚀 Quick Start for Developers
+## Quick Start 
 
 **1. Install the package**
 ```bash
@@ -23,7 +23,7 @@ const scanner = new Scan2Form();
 await scanner.scanToInput('my-input');
 ```
 
-## 🛠️ Handling Previews
+## Handling Previews
 Since `scanToInput` returns the file object, you can easily display a preview yourself:
 
 ```javascript
@@ -38,7 +38,7 @@ That's it! The file input is now populated with the scanned document, just as if
 
 ---
 
-## 🖥️ Setup
+## Setup
 
 To make scanning work, you need two things installed on your computer:
 
@@ -79,7 +79,7 @@ We've included shortcut scripts in the package. If you have the files locally:
 
 ---
 
-## 🛠️ System Requirements
+##  System Requirements
 *   **Node.js**: v16+
 *   **OS**: Windows, Mac, or Linux
 *   **Scanner**: Any scanner supported by your OS drivers.
