@@ -1,4 +1,4 @@
-# Scan2Form
+# Scan2Form [![npm](https://img.shields.io/npm/v/scan2form.svg)](https://www.npmjs.com/package/scan2form)  [![Download](https://img.shields.io/npm/dm/scan2form)](https://www.npmjs.com/package/scan2form)
 
 **Scan documents from a physical scanner directly into your web form.**
 
