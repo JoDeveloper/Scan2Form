@@ -4,5 +4,5 @@ export interface ScannerEngine {
     name: string;
     isAvailable(): Promise<boolean>;
     listDevices(): Promise<Device[]>;
-    scan(options: ScanOptions, outputPath: string): Promise<void>;
+    scan(options: ScanOptions, outputPath: string, signal?: AbortSignal): Promise<void>;
 }

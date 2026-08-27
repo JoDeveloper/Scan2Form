@@ -1,214 +1,206 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="system">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scan2Form Example</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
-        .container { border: 1px solid #ccc; padding: 20px; border-radius: 8px; }
-        .status { margin-top: 10px; color: #666; }
-        .success { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        #preview { margin-top: 20px; border: 1px dashed #aaa; padding: 10px; display: none; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="Scan a document from a local scanner directly into a web form.">
+    <title>Scan2Form example</title>
+    <link rel="stylesheet" href="/example/styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Scan directly to Form</h1>
-        <p>Ensure <b>naps2.console</b> is installed and <b>npx scan2form-server</b> is running.</p>
-        
-        <!-- The form we want to populate -->
-        <form id="my-form" action="#" onsubmit="alert('Form submitted with file!'); return false;">
-            
-            <div style="margin-bottom: 20px;">
-                <label><b>Scan Mode:</b></label>
-                <label><input type="radio" name="mode" value="application/pdf" checked onchange="updateMode(this.value)"> Document (PDF)</label>
-                <label><input type="radio" name="mode" value="image/jpeg" onchange="updateMode(this.value)"> Photo (JPEG)</label>
-            </div>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
 
-            <label for="document-upload">Target Input:</label>
-            <!-- Standard file input (Hidden) -->
-            <!-- We set accept="application/pdf" by default -->
-            <input type="file" id="document-upload" name="document" accept="application/pdf" required style="display: none;" />
-            <div id="file-display">No file scanned yet.</div>
-            <br><br>
-            
-            <label style="display:inline-flex; align-items:center; margin-bottom: 10px; color: #555;">
-                <input type="checkbox" id="mock-check"> &nbsp; Simulate Scan (Test Mode)
-            </label>
-            <br>
-            <button type="button" id="scan-btn">🖨️ Scan from Device</button>
-            <button type="submit">Submit Form</button>
-        </form>
-
-        <div id="status" class="status"></div>
-        
-        <div id="preview">
-            <h3>Preview:</h3>
-            <div id="preview-container">
-                <!-- Preview elements will be auto-populated by the library -->
-                <img id="preview-img" style="max-width: 100%; display: none;" />
-                <iframe id="preview-frame" style="width: 100%; height: 500px; display: none; border: 1px solid #ccc;"></iframe>
+    <div class="page-shell">
+        <header class="topbar">
+            <a class="brand" href="/example/" aria-label="Scan2Form home">
+                <span class="brand-mark" aria-hidden="true">S</span>
+                <span>Scan2Form</span>
+            </a>
+            <div class="topbar-actions">
+                <span id="connection-badge" class="status-chip status-chip-pending" role="status" aria-live="polite">Checking bridge</span>
+                <button id="theme-toggle" class="text-button" type="button" aria-label="Change theme">Theme: system</button>
             </div>
-            <div>File attached: <span id="filename"></span></div>
-        </div>
+        </header>
+
+        <main id="main-content">
+            <section class="hero" aria-labelledby="page-title">
+                <div class="hero-copy">
+                    <p class="eyebrow">Local scanner bridge</p>
+                    <h1 id="page-title">Move paper into your workflow.</h1>
+                    <p class="hero-description">Choose a format, select a scanner, and attach the result to your form without sending the file through a third-party upload.</p>
+                    <div class="feature-strip" aria-label="Local bridge benefits">
+                        <span>Runs on your computer</span>
+                        <span>No retained scan files</span>
+                    </div>
+                </div>
+
+                <section class="setup-card" aria-labelledby="setup-title">
+                    <div class="card-heading">
+                        <div>
+                            <p class="section-label">Scan setup</p>
+                            <h2 id="setup-title">Choose what to scan</h2>
+                        </div>
+                        <button id="refresh-devices" class="icon-button" type="button" aria-label="Refresh scanner list" title="Refresh scanner list">Refresh</button>
+                    </div>
+
+                    <form id="scan-form">
+                        <fieldset class="format-fieldset">
+                            <legend>Output format</legend>
+                            <div class="format-grid">
+                                <label class="format-option">
+                                    <input type="radio" name="format" value="pdf" checked>
+                                    <span class="format-option-body">
+                                        <span class="format-option-title">Document</span>
+                                        <span class="format-option-note">PDF for paperwork</span>
+                                    </span>
+                                </label>
+                                <label class="format-option">
+                                    <input type="radio" name="format" value="jpeg">
+                                    <span class="format-option-body">
+                                        <span class="format-option-title">Photo</span>
+                                        <span class="format-option-note">JPEG for images</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <div class="field-group">
+                            <label for="device-select">Scanner</label>
+                            <select id="device-select" name="deviceId" disabled>
+                                <option value="">Checking connected scanners...</option>
+                            </select>
+                            <p id="device-help" class="field-help">The default scanner is used when no device is selected.</p>
+                        </div>
+
+                        <div class="options-grid">
+                            <div class="field-group">
+                                <label for="dpi-select">Resolution</label>
+                                <select id="dpi-select" name="dpi" disabled>
+                                    <option value="">Use scanner default</option>
+                                    <option value="150">150 DPI</option>
+                                    <option value="300">300 DPI</option>
+                                    <option value="600">600 DPI</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label for="mode-select">Color mode</label>
+                                <select id="mode-select" name="mode" disabled>
+                                    <option value="">Use scanner default</option>
+                                    <option value="color">Color</option>
+                                    <option value="gray">Grayscale</option>
+                                    <option value="bw">Black and white</option>
+                                </select>
+                            </div>
+                        </div>
+                        <p class="field-help settings-help">Select a scanner to choose color mode and resolution.</p>
+
+                        <label class="test-mode-row" for="mock-check">
+                            <input type="checkbox" id="mock-check">
+                            <span>
+                                <strong>Test mode</strong>
+                                <small>Use a sample file to check the form flow without a scanner.</small>
+                            </span>
+                        </label>
+
+                        <input id="document-upload" name="document" type="file" tabindex="-1" hidden>
+
+                        <button id="scan-btn" class="primary-button" type="submit">
+                            <span id="scan-btn-label">Start scan</span>
+                            <span class="button-arrow" aria-hidden="true">↗</span>
+                        </button>
+
+                        <button id="form-submit" class="secondary-button" type="button" disabled>File ready for form</button>
+
+                        <div class="scan-feedback">
+                            <p id="scan-status" class="scan-status" role="status" aria-live="polite">Ready when you are.</p>
+                            <button id="cancel-scan" class="cancel-button" type="button" hidden>Cancel scan</button>
+                        </div>
+                        <div id="scan-progress" class="progress-track" role="progressbar" aria-label="Scan progress" aria-valuetext="Ready" hidden>
+                            <span></span>
+                        </div>
+                    </form>
+                </section>
+            </section>
+
+            <section class="content-grid" aria-label="Scan result and bridge information">
+                <section class="result-card" aria-labelledby="result-title">
+                    <div class="card-heading result-heading">
+                        <div>
+                            <p class="section-label">Latest result</p>
+                            <h2 id="result-title">No scan yet</h2>
+                        </div>
+                        <button id="clear-result" class="text-button" type="button" hidden>Clear result</button>
+                    </div>
+
+                    <div id="empty-result" class="empty-result">
+                        <div class="empty-mark" aria-hidden="true"></div>
+                        <p class="empty-title">Your scanned file will appear here.</p>
+                        <p class="empty-description">The preview stays in this browser tab until you download it or submit the form.</p>
+                    </div>
+
+                    <div id="loading-result" class="loading-result" hidden aria-hidden="true">
+                        <div class="skeleton-block"></div>
+                        <div class="skeleton-line skeleton-line-short"></div>
+                        <div class="skeleton-line"></div>
+                    </div>
+
+                    <div id="preview-container" class="preview-container" hidden>
+                        <img id="preview-image" alt="Scanned document preview" hidden>
+                        <iframe id="preview-pdf" title="Scanned PDF preview" sandbox="allow-same-origin" hidden></iframe>
+                    </div>
+
+                    <div id="file-meta" class="file-meta" hidden>
+                        <div>
+                            <span class="file-label">Attached file</span>
+                            <strong id="filename"></strong>
+                            <span id="filesize"></span>
+                        </div>
+                        <a id="download-link" class="download-link" href="#" download>Download file</a>
+                    </div>
+                </section>
+
+                <aside class="info-card" aria-labelledby="bridge-title">
+                    <div class="card-heading">
+                        <div>
+                            <p class="section-label">Bridge status</p>
+                            <h2 id="bridge-title">Ready to connect</h2>
+                        </div>
+                        <span id="engine-badge" class="engine-badge">Not checked</span>
+                    </div>
+
+                    <ol class="steps-list">
+                        <li>
+                            <span class="step-number">01</span>
+                            <div><strong>Place your document</strong><p>Use the selected scanner or its default profile.</p></div>
+                        </li>
+                        <li>
+                            <span class="step-number">02</span>
+                            <div><strong>Start a scan</strong><p>The bridge streams one result back to this page.</p></div>
+                        </li>
+                        <li>
+                            <span class="step-number">03</span>
+                            <div><strong>Submit your form</strong><p>The file input is populated like a normal upload.</p></div>
+                        </li>
+                    </ol>
+
+                    <div class="security-note">
+                        <strong>Local by design</strong>
+                        <p>Scan files are written to a temporary folder and removed after delivery.</p>
+                    </div>
+                </aside>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <span>Scan2Form example</span>
+            <span>Use <code>npx scan2form-server</code> to start the bridge.</span>
+        </footer>
     </div>
 
-    
-    <script type="module">
-        // In a real app, this would be: import { Scan2Form } from 'scan2form';
-        
-        import { Scan2Form } from '../dist/esm/scanner-client.js';
-
-        const scanner = new Scan2Form();
-        const statusDiv = document.getElementById('status');
-        const previewDiv = document.getElementById('preview');
-        const filenameSpan = document.getElementById('filename');
-        const fileInput = document.getElementById('document-upload');
-
-        // Helper to switch input mode
-        window.updateMode = (mimeType) => {
-            fileInput.accept = mimeType;
-            console.log("Input accept set to:", mimeType);
-        }
-
-        // Update display when input changes
-        fileInput.addEventListener('change', () => {
-             const display = document.getElementById('file-display');
-             if (fileInput.files.length > 0) {
-                 display.innerText = "📁 File Ready: " + fileInput.files[0].name;
-                 display.style.color = 'green';
-                 display.style.fontWeight = 'bold';
-             } else {
-                 display.innerText = "No file scanned yet.";
-                 display.style.color = 'inherit';
-                 display.style.fontWeight = 'normal';
-             }
-        });
-
-        // Check if bridge is online
-        (async () => {
-            const online = await scanner.isAvailable();
-            if(online) {
-                statusDiv.innerText = "✅ Bridge Connected";
-                statusDiv.classList.add('success');
-                
-                // List devices
-                const result = await scanner.getDevices();
-                
-                if (result.error) {
-                    const msg = document.createElement('div');
-                    msg.innerHTML = `⚠️ <b>Error:</b> ${result.error}`;
-                    msg.style.color = 'red';
-                    msg.style.backgroundColor = '#ffe6e6';
-                    msg.style.padding = '10px';
-                    msg.style.marginTop = '10px';
-                    msg.style.borderRadius = '5px';
-                    statusDiv.appendChild(msg);
-                } else if(result.devices.length > 0) {
-                     const deviceList = document.createElement('ul');
-                     result.devices.forEach(d => {
-                         const li = document.createElement('li');
-                         li.innerText = d;
-                         deviceList.appendChild(li);
-                     });
-                     statusDiv.appendChild(document.createElement('hr'));
-                     statusDiv.appendChild(document.createTextNode("Available Scanners:"));
-                     statusDiv.appendChild(deviceList);
-                } else {
-                    const msg = document.createElement('div');
-                    msg.innerText = "No scanners connected.";
-                    msg.style.color = 'orange';
-                    statusDiv.appendChild(msg);
-                }
-
-            } else {
-                statusDiv.innerText = "❌ Bridge Offline (Run 'npx scan2form-server')";
-                statusDiv.classList.add('error');
-            }
-        })();
-
-        document.getElementById('scan-btn').addEventListener('click', async () => {
-            const useMock = document.getElementById('mock-check').checked;
-            statusDiv.innerText = useMock ? "Simulating Scan..." : "⏳ Scanning...";
-            statusDiv.className = 'status'; // reset colors
-            
-            // Reset previews
-            document.getElementById('preview-img').style.display = 'none';
-            document.getElementById('preview-frame').style.display = 'none';
-
-            // Determine preview intent
-            const isImage = fileInput.accept.includes('image');
-            const targetPreviewId = isImage ? 'preview-img' : 'preview-frame';
-
-            let result;
-            try {
-                if (useMock) {
-                    // Mock Flow
-                    await new Promise(r => setTimeout(r, 1000)); // Fake delay
-                    
-                    if (!fileInput.accept) throw new Error("Input accept attribute missing");
-                    
-                    const mockFile = await createMockFile(fileInput.accept);
-                    result = { success: true, file: mockFile };
-                    
-                    // Manually populate input for mock
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(mockFile);
-                    fileInput.files = dataTransfer.files;
-                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-                    // Manually trigger preview for mock
-                    const url = URL.createObjectURL(mockFile);
-                    const el = document.getElementById(targetPreviewId);
-                    el.src = url;
-
-                } else {
-                    // Real Flow
-                    // Reverted client only has scanToInput(inputId)
-                    result = await scanner.scanToInput('document-upload');
-                }
-            } catch (err) {
-                console.error("Scan/Mock Error:", err);
-                result = { success: false, error: err };
-            }
-
-            if (result.success) {
-                statusDiv.innerText = useMock ? "✅ Simulation Success!" : "✅ Scan Success!";
-                statusDiv.classList.add('success');
-                previewDiv.style.display = 'block';
-                filenameSpan.innerText = result.file.name + ` (${Math.round(result.file.size/1024)} KB)`;
-                
-                // Manually handle preview (required for reverted client)
-                const url = URL.createObjectURL(result.file);
-                const el = document.getElementById(targetPreviewId);
-                el.src = url;
-
-                document.getElementById(targetPreviewId).style.display = 'block';
-                
-            } else {
-                const errMsg = result.error.message || result.error || "Unknown error";
-                statusDiv.innerText = "❌ Scan Failed: " + errMsg;
-                statusDiv.classList.add('error');
-            }
-        });
-
-        // Mock File Generator
-        async function createMockFile(accept) {
-            const isPdf = accept.includes('pdf');
-            if (isPdf) {
-                // Minimal valid PDF binary
-                const pdfBase64 = "JVBERi0xLjQKMSAwIG9iago8PC9UeXBlIC9DYXRhbG9nCi9QYWdlcyAyIDAgUgo+PgplbmRvYmoK MiAwIG9iago8PC9UeXBlIC9QYWdlcwovS2lkcyBbMyAwIFJdCi9Db3VudCAxCj4+CmVuZG9iagoz IDAgb2JqCjw8L1R5cGUgL1BhZ2UKL1BhcmVudCAyIDAgUgovTWVkaWFCb3ggWzAgMCA1OTUgODQy XQovQ29udGVudHMgNSAwIFIKL1Jlc291cmNlcyA8PC9Qcm9jU2V0IFsvUERGIC9UZXh0XQovRm9u dCA8PC9GMSA0IDAgUj4+Cj4+Cj4+CmVuZG9iago0IDAgb2JqCjw8L1R5cGUgL0ZvbnQKL1N1YnR5 cGUgL1R5cGUxCi9OYW1lIC9GMQovQmFzZUZvbnQgL0hlbHZldGljYQovRW5jb2RpbmcgL01hY1Jv bWFuRW5jb2RpbmcKPj4KZW5kb2JqCjUgMCBvYmoKPDwvTGVuZ3RoIDUzCj4+CnN0cmVhbQpCVAov RjEgMjAgVGYKMjIwIDQwMCBUZAooRHVtbXkgUERGKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCnhy ZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZgowMDAwMDAwMDA5IDAwMDAwIG4KMDAwMDAwMDA2MyAw MDAwMCBuCjAwMDAwMDAxMjQgMDAwMDAgbgowMDAwMDAwMjc3IDAwMDAwIG4KMDAwMDAwMDM5MiAw MDAwMCBuCnRyYWlsZXIKPDwvU2l6ZSA2Ci9Sb290IDEgMCBSCj4+CnN0YXJ0eHJlZgo0OTUKJSVF T0YK";
-                const blob = await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob();
-                return new File([blob], "mock_scan.pdf", { type: "application/pdf" });
-            } else {
-                // 1x1 Pixel Red Dot (PNG)
-                const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAADMElEQVR4nOzVwQnAIBQFQYXff81RUkQCOyDj1YOPnbXWPmeTRef+/3O/OyBjzh3CD95BfqICMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMO0TAAD";
-                const blob = await (await fetch(`data:image/png;base64,${pngBase64}`)).blob();
-                return new File([blob], "mock_scan.png", { type: "image/png" });
-            }
-        }
-    </script>
+    <noscript>
+        <div class="no-script">JavaScript is required to connect to the local scanner bridge.</div>
+    </noscript>
+    <script type="module" src="/example/app.js"></script>
 </body>
 </html>

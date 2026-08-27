@@ -1,9 +1,7 @@
 import fs from 'fs';
-import path from 'path';
-import { spawn } from 'child_process';
 import { ScannerEngine } from './scanner-engine';
 import { Device, ScanOptions } from '../types';
-import { runCommand } from '../utils';
+import { CommandAbortedError, runCommand, runCommandToFile } from '../utils';
 import { ScanError } from '../errors';
 import { CONFIG } from '../config';
 
@@ -22,56 +20,47 @@ export class SaneEngine implements ScannerEngine {
     async listDevices(): Promise<Device[]> {
         try {
             const stdout = await runCommand('scanimage', ['-L']);
-            return stdout.split('\n')
+            return Array.from(new Set(stdout.split('\n')
                 .filter(line => line.includes('is a'))
-                .map(line => {
-                    const name = line.replace('device `', '').replace(`'`, '');
-                    return { name };
-                });
+                .map(line => line.replace(/^device `/, '').replace(/'.*$/, '').trim())
+                .filter(Boolean)))
+                .map(name => ({ id: name, name, driver: 'sane' }));
         } catch (e: any) {
             throw new ScanError('DEVICE_LIST_FAILED', 'Failed to list SANE devices', e.message);
         }
     }
 
-    async scan(options: ScanOptions, outputPath: string): Promise<void> {
+    async scan(options: ScanOptions, outputPath: string, signal?: AbortSignal): Promise<void> {
         const tempTiffPath = outputPath.replace(/\.\w+$/, '.tiff');
-        
-        try {
-            // SANE Scan
-            const args = ['--format=tiff', '--mode', 'Color', '--resolution', '300'];
-            if (options.deviceId) {
-                 args.push('-d', options.deviceId); 
-                 // Note: Device ID handling needs care given the string format, 
-                 // but for SANE 'deviceId' is usually the name/address.
-            }
 
-            await new Promise<void>((resolve, reject) => {
-                const fileStream = fs.createWriteStream(tempTiffPath);
-                const child = spawn('scanimage', args);
-                
-                child.stdout.pipe(fileStream);
-                
-                let stderr = '';
-                child.stderr.on('data', d => stderr += d);
-                
-                child.on('close', (code) => {
-                    if (code === 0) resolve();
-                    else reject(new Error(stderr || `SANE failed with code ${code}`));
-                });
-                
-                child.on('error', reject);
+        try {
+            const mode = options.mode === 'gray' ? 'Gray' : options.mode === 'bw' ? 'Lineart' : 'Color';
+            const dpi = options.dpi ?? 300;
+            const args = ['--format=tiff', '--mode', mode, '--resolution', String(dpi)];
+            if (options.deviceId) args.push('-d', options.deviceId);
+
+            await runCommandToFile('scanimage', args, tempTiffPath, {
+                signal,
+                maxOutputBytes: CONFIG.MAX_SCAN_BYTES,
             });
 
-            // Conversion
             let sipsFormat = options.format;
             if (options.format === 'jpg') sipsFormat = 'jpeg';
-            
-            await runCommand('sips', ['-s', 'format', sipsFormat, tempTiffPath, '--out', outputPath]);
-
+            await runCommand('sips', ['-s', 'format', sipsFormat, tempTiffPath, '--out', outputPath], { signal });
         } catch (e: any) {
+            if (e instanceof CommandAbortedError) {
+                throw new ScanError('SCAN_ABORTED', 'Scan cancelled.', null, 499);
+            }
+            if (e instanceof ScanError) throw e;
             throw new ScanError('SCAN_FAILED', 'SANE scan failed', e.message);
         } finally {
-             if (fs.existsSync(tempTiffPath)) fs.unlinkSync(tempTiffPath);
+            if (fs.existsSync(tempTiffPath)) {
+                try {
+                    fs.unlinkSync(tempTiffPath);
+                } catch {
+                    // The bridge removes the final scan file separately.
+                }
+            }
         }
     }
 }
