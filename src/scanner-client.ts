@@ -86,9 +86,7 @@ export class Scan2Form {
             else signal.addEventListener('abort', abortRequest, { once: true });
         }
 
-        const headers = new Headers(init.headers);
-        if (!headers.has('Accept')) headers.set('Accept', 'application/json');
-        if (this.token) headers.set('Authorization', `Bearer ${this.token}`);
+        const headers = createRequestHeaders(init.headers, this.token);
 
         try {
             return await this.fetchImpl(`${this.bridgeUrl}${path}`, {
@@ -199,7 +197,7 @@ export class Scan2Form {
             if (!mimeType) throw new ScanClientError('Bridge returned an unsupported file type', 'UNEXPECTED_CONTENT_TYPE');
 
             const extension = extensionForMime(mimeType, format);
-            const file = new File([blob], `scanned_doc_${Date.now()}.${extension}`, { type: mimeType });
+            const file = createScanFile(blob, `scanned_doc_${Date.now()}.${extension}`, mimeType);
             return { success: true, file };
         } catch (error) {
             return { success: false, error: errorMessage(error) };
@@ -260,6 +258,51 @@ function extensionForMime(mimeType: string, requestedFormat: ScanFormat): string
     if (mimeType === 'image/jpeg') return 'jpg';
     if (mimeType === 'image/png') return 'png';
     return requestedFormat === 'jpeg' ? 'jpg' : 'pdf';
+}
+
+function createScanFile(blob: Blob, name: string, mimeType: string): File {
+    if (typeof globalThis.File === 'function') {
+        return new globalThis.File([blob], name, { type: mimeType });
+    }
+
+    // Node versions without a global File still provide Blob. Decorating the
+    // blob keeps the client usable with injected fetch implementations and in
+    // server-side tests; browsers always take the native File path above.
+    try {
+        Object.defineProperties(blob, {
+            name: { configurable: true, enumerable: true, value: name },
+            lastModified: { configurable: true, enumerable: true, value: Date.now() },
+        });
+    } catch {
+        // A non-extensible Blob is still the best available file payload.
+    }
+    return blob as File;
+}
+
+function createRequestHeaders(initHeaders: HeadersInit | undefined, token?: string): HeadersInit {
+    if (typeof globalThis.Headers === 'function') {
+        const headers = new globalThis.Headers(initHeaders);
+        if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+        if (token) headers.set('Authorization', `Bearer ${token}`);
+        return headers;
+    }
+
+    const headers: Record<string, string> = {};
+    if (Array.isArray(initHeaders)) {
+        for (const [key, value] of initHeaders) headers[key] = value;
+    } else if (initHeaders && typeof (initHeaders as Headers).forEach === 'function') {
+        (initHeaders as Headers).forEach((value, key) => { headers[key] = value; });
+    } else if (initHeaders) {
+        Object.assign(headers, initHeaders);
+    }
+
+    const hasHeader = (name: string) => Object.keys(headers).some(key => key.toLowerCase() === name.toLowerCase());
+    if (!hasHeader('Accept')) headers.Accept = 'application/json';
+    if (token) {
+        const authorizationKey = Object.keys(headers).find(key => key.toLowerCase() === 'authorization');
+        headers[authorizationKey || 'Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
 }
 
 function errorMessage(error: unknown): string {

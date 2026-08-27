@@ -469,8 +469,25 @@ h2 {
     background: var(--surface);
 }
 
-.field-group select:hover {
+.field-group input[type="password"] {
+    width: 100%;
+    min-height: 46px;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    background: var(--surface);
+    color: var(--ink);
+}
+
+.field-group select:hover,
+.field-group input[type="password"]:hover {
     border-color: var(--accent);
+}
+
+.field-optional {
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
 }
 
 .field-help {

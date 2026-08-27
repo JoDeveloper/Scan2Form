@@ -1,6 +1,5 @@
 import { Scan2Form } from '../dist/esm/scanner-client.js';
 
-const scanner = new Scan2Form({ requestTimeoutMs: 120000 });
 const root = document.documentElement;
 const elements = {
     connectionBadge: document.getElementById('connection-badge'),
@@ -10,6 +9,7 @@ const elements = {
     scanForm: document.getElementById('scan-form'),
     deviceSelect: document.getElementById('device-select'),
     deviceHelp: document.getElementById('device-help'),
+    bridgeToken: document.getElementById('bridge-token'),
     dpiSelect: document.getElementById('dpi-select'),
     modeSelect: document.getElementById('mode-select'),
     mockCheck: document.getElementById('mock-check'),
@@ -42,6 +42,12 @@ let activeAbortController = null;
 let cancelRequested = false;
 let latestFile = null;
 let previewUrl = null;
+let scanner = createScanner();
+
+function createScanner() {
+    const token = elements.bridgeToken.value.trim();
+    return new Scan2Form({ requestTimeoutMs: 120000, token: token || undefined });
+}
 
 function setStatus(kind, message) {
     elements.scanStatus.className = 'scan-status';
@@ -69,6 +75,7 @@ function setBusy(isBusy) {
     elements.deviceSelect.disabled = bridgeBusy || !bridgeOnline;
     updateAdvancedAvailability();
     elements.mockCheck.disabled = bridgeBusy;
+    elements.bridgeToken.disabled = bridgeBusy;
     elements.cancelScan.hidden = !isBusy;
     elements.scanProgress.hidden = !isBusy;
     elements.scanProgress.classList.toggle('is-active', isBusy);
@@ -111,6 +118,7 @@ function fillDevices(devices) {
 }
 
 async function refreshBridge() {
+    scanner = createScanner();
     elements.refreshDevices.disabled = true;
     setConnection('pending', 'Checking bridge');
 
@@ -265,6 +273,7 @@ async function handleScan() {
 
     cancelRequested = false;
     activeAbortController = new AbortController();
+    scanner = createScanner();
     clearResult();
     setBusy(true);
     elements.emptyResult.hidden = true;

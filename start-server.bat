@@ -1,4 +1,5 @@
 @echo off
+setlocal
 echo Starting Scan2Form Server...
-call npx scan2form-server
+node "%~dp0dist\bridge-server.js"
 pause

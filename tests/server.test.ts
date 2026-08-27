@@ -84,7 +84,35 @@ describe('Bridge Server API', () => {
 
         expect(res.status).toBe(403);
         expect(res.body.code).toBe('ORIGIN_NOT_ALLOWED');
+        expect(res.body.requestId).toBe(res.headers['x-request-id']);
+        expect(res.headers['cache-control']).toBe('no-store');
         expect(mockSpawnFn).not.toHaveBeenCalled();
+    });
+
+    test('requires a bearer token when token authentication is configured', async () => {
+        const previousToken = process.env.SCAN2FORM_API_TOKEN;
+        process.env.SCAN2FORM_API_TOKEN = 'test-bridge-token';
+
+        try {
+            jest.resetModules();
+            app = require('../src/bridge-server').app;
+
+            const missing = await request(app).get('/health');
+            expect(missing.status).toBe(401);
+            expect(missing.body.code).toBe('UNAUTHORIZED');
+            expect(missing.headers['cache-control']).toBe('no-store');
+            expect(mockSpawnFn).not.toHaveBeenCalled();
+
+            mockSpawnFn.mockReset();
+            mockSpawnFn.mockImplementationOnce(() => createMockChild(0));
+            const authorized = await request(app)
+                .get('/health')
+                .set('Authorization', 'Bearer test-bridge-token');
+            expect(authorized.status).toBe(200);
+        } finally {
+            if (previousToken === undefined) delete process.env.SCAN2FORM_API_TOKEN;
+            else process.env.SCAN2FORM_API_TOKEN = previousToken;
+        }
     });
 
     test('rejects unsafe scan options before invoking a scanner', async () => {

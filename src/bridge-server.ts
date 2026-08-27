@@ -69,10 +69,7 @@ function isRequestOriginAllowed(req: express.Request): boolean {
 
 function originGuard(req: express.Request, res: express.Response, next: express.NextFunction): void {
     if (!isRequestOriginAllowed(req)) {
-        res.status(403).json({
-            error: 'Origin is not allowed to access the local bridge',
-            code: 'ORIGIN_NOT_ALLOWED',
-        });
+        sendError(res, 403, 'ORIGIN_NOT_ALLOWED', 'Origin is not allowed to access the local bridge');
         return;
     }
     next();
@@ -93,7 +90,7 @@ function tokenGuard(req: express.Request, res: express.Response, next: express.N
     const matches = expected.length === received.length && crypto.timingSafeEqual(expected, received);
 
     if (!matches) {
-        res.status(401).json({ error: 'A valid bridge token is required', code: 'UNAUTHORIZED' });
+        sendError(res, 401, 'UNAUTHORIZED', 'A valid bridge token is required');
         return;
     }
     next();
@@ -110,7 +107,7 @@ app.use((req, res, next) => {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     res.setHeader(
         'Content-Security-Policy',
-        `default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob:; frame-src 'self' blob:; script-src 'self'; style-src 'self'; connect-src 'self' http://127.0.0.1:${CONFIG.PORT} http://localhost:${CONFIG.PORT}`
+        `default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob:; frame-src 'self' blob:; script-src 'self'; style-src 'self'; connect-src 'self' http://127.0.0.1:${CONFIG.PORT} http://localhost:${CONFIG.PORT} http://[::1]:${CONFIG.PORT}`
     );
     next();
 });
@@ -171,7 +168,7 @@ function publicError(error: unknown, fallback: string): { status: number; code: 
 }
 
 function sendError(res: express.Response, status: number, code: string, message: string): void {
-    if (res.headersSent || res.writableEnded) return;
+    if (res.headersSent || res.writableEnded || res.destroyed) return;
     res.setHeader('Cache-Control', 'no-store');
     res.status(status).json({ error: message, code, requestId: res.locals.requestId });
 }
@@ -190,6 +187,8 @@ function scanRateLimit(req: express.Request, res: express.Response, next: expres
 
     const recentAttempts = (scanAttempts.get(key) || [])
         .filter(timestamp => now - timestamp < CONFIG.RATE_LIMIT_WINDOW_MS);
+
+    if (recentAttempts.length === 0) scanAttempts.delete(key);
 
     if (recentAttempts.length >= CONFIG.MAX_SCAN_REQUESTS_PER_WINDOW) {
         const retryAfter = Math.max(1, Math.ceil((recentAttempts[0] + CONFIG.RATE_LIMIT_WINDOW_MS - now) / 1000));
