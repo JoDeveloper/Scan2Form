@@ -39,6 +39,21 @@ jobs:
         if: steps.version_check.outputs.changed == 'true'
         run: npm ci
 
+      - name: Verify npm publish token
+        if: steps.version_check.outputs.changed == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::The NPM_TOKEN secret is missing or empty. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if ! WHOAMI=$(npm whoami 2>&1); then
+            echo "::error::NPM_TOKEN is invalid, expired, or revoked (npm whoami failed). Generate a fresh token on npmjs.com and update the secret."
+            exit 1
+          fi
+          echo "Publishing as npm user: $WHOAMI"
+
       - name: Publish package
         if: steps.version_check.outputs.changed == 'true'
         env:
