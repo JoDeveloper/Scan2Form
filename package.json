@@ -1,6 +1,6 @@
 {
   "name": "scan2form",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Local offline bridge allowing web browsers to access physical scanners (WIA, TWAIN, SANE).",
   "main": "dist/scanner-client.js",
   "scripts": {
@@ -33,24 +33,22 @@
   ],
   "author": "jodeveloper8",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoDeveloper/Scan2Form.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JoDeveloper/Scan2Form/issues"
+  },
+  "homepage": "https://github.com/JoDeveloper/Scan2Form#readme",
   "engines": {
     "node": ">=16"
   },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.22.2",
-    "uuid": "^11.1.1"
-  },
-  "overrides": {
-    "path-to-regexp": "0.1.13"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.10.6",
     "@types/supertest": "^6.0.3",
-    "@types/uuid": "^9.0.7",
     "jest": "^30.2.0",
     "nodemon": "^3.0.2",
     "supertest": "^7.2.2",

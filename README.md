@@ -13,6 +13,8 @@ npm install scan2form
 npx scan2form-server
 ```
 
+The bridge also supports `--help` and `--version`, and shuts down cleanly on `Ctrl+C` / `SIGTERM` (it stops accepting connections, cancels any scan in progress, and exits).
+
 Open the included example at [http://127.0.0.1:3000/example/index.html](http://127.0.0.1:3000/example/index.html).
 
 In a browser application:
@@ -107,6 +109,14 @@ The bridge uses `scanimage` for capture and `sips` for format conversion on the 
 
 ## Security and configuration
 
+### Zero runtime dependencies
+
+Since v1.5.0 the bridge server is built entirely on Node.js built-ins (`node:http`, `node:fs`, `node:crypto`). Installing `scan2form` pulls in **no third-party code** — there is no dependency tree to audit, and supply-chain scanners report a clean dependency tab. Earlier versions shipped `express`, `cors`, and `uuid`, which transitively pulled in dozens of packages; the rewrite keeps every endpoint and safeguard identical while removing that entire surface.
+
+The bridge runs as a local process by design: it binds a loopback HTTP port, reads the environment variables documented below, writes scan output to a temporary directory, and launches the installed scanner software (`naps2.console`, `scanimage`, `sips`) directly — never through a shell. These capabilities are flagged by automated scanners and are the expected behavior of a local scanner bridge.
+
+The server also applies security headers, a small JSON body limit, exact origin checks, timing-safe token comparison, scan request rate limiting, one active scan at a time, bounded command output, abortable child processes, and non-cacheable scan responses. Temporary scan files are created with restrictive permissions and stale files are cleaned when the bridge starts.
+
 The bridge binds to `127.0.0.1` by default. Keep it on loopback unless a controlled network deployment is required. If it must serve another application origin, configure an exact comma-separated origin allowlist:
 
 ```bash
@@ -126,8 +136,6 @@ const scanner = new Scan2Form({
 });
 ```
 
-The server also applies security headers, a small JSON body limit, exact origin checks, timing-safe token comparison, scan request rate limiting, one active scan at a time, bounded command output, abortable child processes, and non-cacheable scan responses. Temporary scan files are created with restrictive permissions and stale files are cleaned when the bridge starts.
-
 Useful environment variables:
 
 | Variable | Default | Purpose |
@@ -143,6 +151,7 @@ Useful environment variables:
 | `MAX_COMMAND_OUTPUT_BYTES` | `1048576` | Maximum scanner command output captured in memory |
 | `MAX_SCAN_REQUESTS_PER_WINDOW` | `6` | Scan requests allowed per rate-limit window and client |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Scan rate-limit window |
+| `JSON_BODY_LIMIT_BYTES` | `16384` | Maximum accepted JSON request body size |
 | `SCAN2FORM_ALLOWED_ORIGINS` | local bridge origins | Exact browser origin allowlist |
 | `SCAN2FORM_API_TOKEN` | unset | Optional bearer token |
 | `NAPS2_DRIVER` | platform default | NAPS2 driver used for device mode |

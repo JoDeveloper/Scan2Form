@@ -25,7 +25,7 @@ function parseOrigins(value: string | undefined): string[] {
 }
 
 export const CONFIG = {
-    VERSION: '1.4.0',
+    VERSION: '1.5.0',
     PORT: parsePositiveInteger(process.env.PORT, 3000),
     HOST: process.env.HOST || '127.0.0.1',
     TEMP_DIR: path.resolve(process.env.TEMP_DIR || path.join(__dirname, 'temp_scans')),
@@ -35,7 +35,7 @@ export const CONFIG = {
     MAX_COMMAND_OUTPUT_BYTES: parsePositiveInteger(process.env.MAX_COMMAND_OUTPUT_BYTES, 1024 * 1024),
     MAX_SCAN_BYTES: parsePositiveInteger(process.env.MAX_SCAN_BYTES, 100 * 1024 * 1024),
     MAX_DEVICE_ID_LENGTH: 512,
-    JSON_BODY_LIMIT: '16kb',
+    JSON_BODY_LIMIT_BYTES: parsePositiveInteger(process.env.JSON_BODY_LIMIT_BYTES, 16 * 1024),
     DEVICE_CACHE_TTL_MS: parsePositiveInteger(process.env.DEVICE_CACHE_TTL_MS, 10000),
     MAX_SCAN_REQUESTS_PER_WINDOW: parsePositiveInteger(process.env.MAX_SCAN_REQUESTS_PER_WINDOW, 6),
     RATE_LIMIT_WINDOW_MS: parsePositiveInteger(process.env.RATE_LIMIT_WINDOW_MS, 60000),

@@ -60,7 +60,7 @@ describe('Scan Formats', () => {
         });
 
         jest.resetModules();
-        app = require('../src/bridge-server').app;
+        app = require('../src/bridge-server').createBridgeServer();
     });
 
     test('NAPS2: POST /scan with format=jpeg generates .jpg extension', async () => {
